@@ -140,6 +140,7 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
     <div class="card card-pad" style="margin-bottom:16px">
       <div class="section-note" id="dashNote"></div>
       <div class="kpi-row" id="kpiRow"></div>
+      <div id="gapPanel" style="margin-top:14px"></div>
     </div>
     <div class="two-col">
       <div class="card card-pad">
@@ -226,8 +227,10 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
       <div class="full" id="baseInfo"></div>
       <label><span class="step-badge">3</span>課題</label><textarea id="pIssue" placeholder="乖離の要因・課題"></textarea>
       <label>改善案（C案/Act）</label><textarea id="pAct" placeholder="乖離を埋める具体アクション"></textarea>
-      <label>調整KPI</label><select id="pKpi" class="wide"></select>
-      <label>目標値</label><input type="text" id="pGoal" placeholder="例：コラム +3本 / CVR 0.8%">
+      <label>対象KPI（反映先）</label><select id="pKpiSel" class="wide" onchange="onPKpiSel()"></select>
+      <label>元施策の結果<br><span class="muted" style="font-weight:400;font-size:10px">前サイクルの実績値</span></label><input type="text" id="pBaseVal" placeholder="例：9">
+      <label>次サイクルの目標値 <span id="pTargetUnit" class="muted" style="font-weight:400;font-size:10px"></span></label><input type="text" id="pTargetVal" placeholder="このKPIに設定する目標値（例：15）">
+      <label>目標補足（任意）</label><input type="text" id="pGoal" placeholder="例：CVR 0.42% など補足">
       <label>引き継ぎ先施策<br><span class="muted" style="font-weight:400;font-size:10px">改善案を実施する施策</span></label>
       <div><select id="pSucSel" class="wide" onchange="onSucSel()"></select><input type="text" id="pSucNew" class="wide hidden" placeholder="新規施策の内容（施策Noは後から割当）" style="margin-top:6px"></div>
       <label>期限</label><input type="date" id="pDue">
@@ -239,7 +242,8 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
   </div>
   <div class="modal-ft"><span id="editingBadge" class="hdr-badge hidden" style="background:#fef3c7;color:#b45309;margin-right:auto"></span>
     <button class="btn btn-ghost" onclick="closePdcaModal()">閉じる</button>
-    <button class="btn btn-green" onclick="savePdca()">記録する</button></div>
+    <button class="btn btn-primary" onclick="savePdcaAndReflect()">記録してKPIに反映</button>
+    <button class="btn btn-green" onclick="savePdca()">記録のみ</button></div>
 </div></div>
 
 <!-- IMPORT MODAL -->
@@ -344,12 +348,6 @@ function initUI(){
   const sp=document.createElement('div');sp.className='org-bar-sp';ob.appendChild(sp);ob.appendChild(fg);
   document.querySelectorAll('.view-tab').forEach(t=>{t.onclick=()=>{ST.view=t.dataset.v;document.querySelectorAll('.view-tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');document.querySelectorAll('[id^=view-]').forEach(v=>v.classList.add('hidden'));document.getElementById('view-'+ST.view).classList.remove('hidden');renderAll();};});
   const tm=document.getElementById('trendMetric');tm.innerHTML='';FUNNEL.forEach(f=>tm.innerHTML+=`<option value="${f[0]}">${f[1]}</option>`);tm.value='mql';
-  const pk=document.getElementById('pKpi');pk.innerHTML='';
-  pk.innerHTML+='<optgroup label="ファネル">'+FUNNEL.map(f=>`<option>${f[1]}</option>`).join('')+'<option>CVR</option><option>受注率</option></optgroup>';
-  pk.innerHTML+='<optgroup label="施策別">'+['実施本数','CV寄与数','開封率'].map(x=>`<option>${x}</option>`).join('')+'</optgroup>';
-  pk.innerHTML+='<optgroup label="KPIツリー：チャネル別セッション">'+(DATA.channelList||[]).map(c=>`<option>セッション:${c}</option>`).join('')+'</optgroup>';
-  pk.innerHTML+='<optgroup label="KPIツリー：ページ別セッション">'+(DATA.pageList||[]).map(p=>`<option>セッション(ページ):${p}</option>`).join('')+'</optgroup>';
-  pk.innerHTML+='<option>その他</option>';
 }
 function renderAll(){
   if(ST.view==='dash')renderDash();
@@ -367,7 +365,7 @@ function rateTxt(r){return r>=1?'rate-ok':r>=0.8?'rate-warn':'rate-bad';}
 function barColor(r){return r>=1?'#10b981':r>=0.8?'#f59e0b':'#ef4444';}
 
 /* ===== DASH ===== */
-function renderDash(){
+function renderDash(){try{renderGapPanel();}catch(e){console.warn(e);}
   const mm=selMonths();
   document.getElementById('dashNote').innerHTML=`対象：<b>${ST.biz==='ALL'?'全社':ST.biz}</b> ／ 期間：<b>${mm[0]}〜${mm[mm.length-1]}</b>（${mm.length}ヶ月）　ファネル目標＝ROIダッシュボード2026年度（年間×${mm.length}/12で按分）。`;
   const row=document.getElementById('kpiRow');row.innerHTML='';
@@ -382,6 +380,40 @@ function renderDash(){
   drawChart('chartTrend','line',{labels:FYM.map(mLabel),datasets:[{label:'実績',data:actS,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.1)',fill:true,tension:.3,pointRadius:3},{label:'月次目標',data:FYM.map(()=>tgM),borderColor:'#ef4444',borderDash:[6,4],pointRadius:0,datalabels:{display:false}}]},{plugins:{legend:{position:'bottom'},datalabels:{display:ctx=>ctx.datasetIndex===0,align:'top',color:'#2563eb',font:{weight:'700',size:10},formatter:v=>v>0?fmt(v):''}},scales:{y:{beginAtZero:true}}});
 }
 
+/* ===== 配分ギャップ（全体目標 vs 個別KPI積み上げ） ===== */
+function gapAllChans(){const set=[];for(const b of bizList())(DATA.kpiTree[b]||[]).forEach(c=>{if(!set.includes(c.channel))set.push(c.channel);});return set;}
+function gapRollSession(){let s=0;gapAllChans().forEach(ch=>s+=chT(ch));return s;}
+function gapRollMql(){let s=0;gapAllChans().forEach(ch=>s+=chMql(ch));return s;}
+function gapChPageRoll(ch){let s=0;pagesOf(ch).forEach(pg=>s+=pgT(ch,pg));return s;}
+function gapRollPage(){let s=0;gapAllChans().forEach(ch=>s+=gapChPageRoll(ch));return s;}
+function gapHonsu(){const out={};for(const b of bizList()){const o=DATA.shisakuKpi[b]||{};for(const cat in o){const rec=o[cat];out[cat]=out[cat]||{a:0,m:0};out[cat].a+=(rec.targetAnnual||0);const mm=rec.monthly||{};for(const k in mm)out[cat].m+=(mm[k]||0);}}return out;}
+function gapSig(overall,roll){if(!(overall>0)||roll==null)return null;const diff=roll-overall,rt=Math.abs(diff)/overall;return{diff:diff,color:rt<=0.03?'#639922':(rt<=0.10?'#EF9F27':'#E24B4A')};}
+function gapDot(c){return `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c}"></span>`;}
+function gapRow(label,overall,roll,indent){
+  const pad=indent?'padding-left:22px':'';
+  if(roll==null||!(overall>0))return `<tr><td style="${pad}">${label}</td><td class="num">${overall>0?fmt(overall):'—'}</td><td class="num muted">内訳なし</td><td class="num muted">—</td><td style="text-align:center"><span class="muted" style="font-size:11px">—</span></td></tr>`;
+  const sig=gapSig(overall,roll),diff=roll-overall;
+  const col=diff===0?'#3B6D11':(diff<0?'#A32D2D':'#BA7517');
+  return `<tr><td style="${pad}">${label}</td><td class="num">${fmt(overall)}</td><td class="num">${fmt(roll)}</td><td class="num" style="color:${col}">${diff>0?'+':''}${fmt(diff)}</td><td style="text-align:center">${gapDot(sig.color)}</td></tr>`;
+}
+function renderGapPanel(){
+  const el=document.getElementById('gapPanel');if(!el)return;
+  const sess=aggT('session'),sRoll=gapRollSession(),pRoll=gapRollPage();
+  const diff=sess>0?sRoll-sess:0,w=sess>0?Math.min(sRoll/sess*100,100):0;
+  let bar='';
+  if(sess>0){bar=`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>セッション（全体 <b>${fmt(sess)}</b> ／ 積み上げ <b>${fmt(sRoll)}</b>）</span><span style="color:${diff<0?'#A32D2D':(diff>0?'#BA7517':'#3B6D11')}">ギャップ ${diff>0?'+':''}${fmt(diff)}（${Math.round(diff/sess*100)}%）</span></div><div style="position:relative;height:20px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden"><div style="position:absolute;left:0;top:0;bottom:0;width:${w}%;background:#C0DD97"></div>${sRoll<sess?`<div style="position:absolute;left:${w}%;right:0;top:0;bottom:0;background:#F7C1C1"></div>`:''}</div></div>`;}
+  let rows=FUNNEL.map(f=>{let r=null;if(f[0]==='session')r=sRoll;else if(f[0]==='mql')r=gapRollMql();return gapRow(f[1],aggT(f[0]),r,false);}).join('');
+  rows+=`<tr><td colspan="5" style="background:#f8fafc;font-weight:700;font-size:11px;color:#475569">KPIツリー：チャネル計 → ページ計（セッション）</td></tr>`;
+  rows+=gapRow('チャネル計 → ページ計',sRoll,pRoll,true);
+  gapAllChans().forEach(ch=>{rows+=gapRow(ch,chT(ch),gapChPageRoll(ch),true);});
+  const hs=gapHonsu();const cats=Object.keys(hs);
+  if(cats.length){rows+=`<tr><td colspan="5" style="background:#f8fafc;font-weight:700;font-size:11px;color:#475569">施策本数：年間目標 → 月次配分</td></tr>`;
+    let ta=0,tm=0;cats.forEach(c=>{ta+=hs[c].a;tm+=hs[c].m;});
+    rows+=gapRow('本数計（年間 → 月次）',ta,tm,true);
+    cats.forEach(c=>{if(hs[c].a>0&&Math.abs(hs[c].m-hs[c].a)/hs[c].a>0.03)rows+=gapRow(c,hs[c].a,hs[c].m,true);});
+  }
+  el.innerHTML=bar+`<div class="tbl-wrap" style="max-height:none"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr><th style="text-align:left">指標 / 階層</th><th class="num">全体目標</th><th class="num">積み上げ</th><th class="num">ギャップ</th><th style="text-align:center">整合</th></tr></thead><tbody>${rows}</tbody></table></div><div class="legend" style="margin-top:8px"><span class="muted">整合ドット：<span style="color:#639922">●</span>±3%以内　<span style="color:#EF9F27">●</span>±10%以内　<span style="color:#E24B4A">●</span>要調整。全体目標（トップダウン）に対し個別KPIの積み上げ（ボトムアップ）が一致しているかを一目で確認できます。</span></div>`;
+}
 /* ===== 施策別KPI ===== */
 function renderShisakuKpi(){
   const mm=selMonths();
@@ -410,7 +442,7 @@ function renderShisakuKpi(){
     h+=`<tr><td><b>${cat}</b></td><td class="num">${fmt(tgt)}</td><td class="num">${fmt(act)}</td><td class="num ${r!=null?rateTxt(r):''}">${r!=null?pct(r):'—'}</td><td class="num" style="color:${gap>=0?'var(--green2)':'var(--red)'}">${gap>=0?'+':''}${fmt(gap)}</td><td class="muted" style="font-size:11px">${sm?sm.label:'実施本数のみ'}</td><td class="num">${sm&&sm.actual!=null?fmt(sm.actual):'—'}</td><td class="num">${sm&&sm.target?fmt(sm.target):'—'}</td><td>${r==null?'<span class="pill pill-todo">目標未設定</span>':r>=1?'<span class="pill pill-done">達成</span>':r>=0.8?'<span class="pill pill-hold">あと少し</span>':'<span class="pill pill-stop">未達</span>'}</td></tr>`;});
   h+='</tbody>';document.getElementById('skTbl').innerHTML=h;
 }
-function startPdcaFor(cat){openPdcaModal();const pc=document.getElementById('pCat');if([...pc.options].some(o=>o.value===cat))pc.value=cat;fillShisakuSelect();}
+function startPdcaFor(cat){openPdcaModal();const pc=document.getElementById('pCat');if([...pc.options].some(o=>o.value===cat))pc.value=cat;fillShisakuSelect();selectPKpi({kind:'honsu',a:cat});}
 
 /* ===== KPI TREE (チャネル/ページ別) ===== */
 function chObj(b,ch){return(DATA.kpiTree[b]||[]).find(c=>c.channel===ch);}
@@ -502,7 +534,7 @@ function renderBoard(){
   DATA.newShisaku.forEach(n=>{if(!bizList().includes(n.biz))return;if(!catOK(n.cat))return;cols.P.push({type:'new',id:n.id,biz:n.biz,cat:n.cat,title:'【新規施策】'+(n.name||''),meta:(n.no?('No.'+n.no):'No未割当'),kpi:''});});
   DATA.pdca.forEach(p=>{if(!bizList().includes(p.biz))return;if(catF&&catF!=='(全カテゴリ)'&&p.cat!==catF)return;
     const st=p.judge?'A':'C';const suc=p.successorName?('→引継:'+trunc(p.successorName,16)):(p.successorNo?('→引継No.'+p.successorNo):'');
-    cols[st].push({type:'pdca',id:p.id,biz:p.biz,cat:p.cat,title:'【改善案】'+(p.act||p.issue||''),meta:`${p.date} ${p.judge||'検証中'} ${suc}`,kpi:p.kpi,stage:st});});
+    cols[st].push({type:'pdca',id:p.id,biz:p.biz,cat:p.cat,title:'【改善案】'+(p.act||p.issue||''),meta:`${p.date} ${p.judge||'検証中'} ${suc}`,kpi:p.kpi,reflected:!!p.reflected,stage:st});});
   const names={P:['Plan 計画','pc-P'],D:['Do 実行中','pc-D'],C:['Check 検証（施策完了→検証）','pc-C'],A:['Act 改善完了','pc-A']};
   const board=document.getElementById('pdcaBoard');board.innerHTML='';
   ['P','D','C','A'].forEach(k=>{
@@ -515,8 +547,9 @@ function renderBoard(){
       if(c.type==='shisaku'&&c.stage==='C')btn=`<button class="btn btn-green btn-sm" style="margin-top:6px;padding:3px 8px;font-size:10px;width:100%" onclick="event.stopPropagation();actComplete('${c.biz}','${c.no}')">✓ CA不要 → Act完了へ</button>`;
       else if(c.type==='shisaku'&&c.forced)btn=`<button class="btn btn-ghost btn-sm" style="margin-top:6px;padding:3px 8px;font-size:10px;width:100%" onclick="event.stopPropagation();actRevert('${c.biz}','${c.no}')">↩ Checkへ戻す</button>`;
       else if(c.type==='new')btn=`<button class="btn btn-primary btn-sm" style="margin-top:6px;padding:3px 8px;font-size:10px;width:70%" onclick="event.stopPropagation();assignNewNo('${c.id}')">No割当</button><button class="btn btn-danger btn-sm" style="margin-top:6px;padding:3px 6px;font-size:10px;width:28%;margin-left:2%" onclick="event.stopPropagation();delNew('${c.id}')">✕</button>`;
+      else if(c.type==='pdca')btn=c.reflected?'<div style="margin-top:6px;font-size:10px;color:var(--green2)">✓ KPI反映済み</div>':`<button class="btn btn-primary btn-sm" style="margin-top:6px;padding:3px 8px;font-size:10px;width:100%" onclick="event.stopPropagation();reflectPdcaToKpi('${c.id}')">↥ KPIに反映</button>`;
       return `<div class="pdca-card" style="${over?'border-color:var(--red);background:#fff7f7':''}${c.type==='new'?'border-style:dashed':''}" ${oc?`onclick='${oc}'`:''}>
-      <div class="pc-cat">${c.biz}・${c.cat||'—'}${c.type==='pdca'?' 🔁':''}${c.type==='new'?' 🆕':''}${c.autoTag?' <span style="color:var(--green2)">✓~25/11完了</span>':(c.forced?' <span style="color:var(--green2)">✓CA省略</span>':'')}${over?' <span style="color:var(--red);font-weight:800">⚠ 検証期限超過</span>':''}</div>
+      <div class="pc-cat">${c.biz}・${c.cat||'—'}${c.type==='pdca'?' 🔁':''}${c.type==='pdca'&&c.reflected?' <span style="color:var(--green2)">✓反映済</span>':''}${c.type==='new'?' 🆕':''}${c.autoTag?' <span style="color:var(--green2)">✓~25/11完了</span>':(c.forced?' <span style="color:var(--green2)">✓CA省略</span>':'')}${over?' <span style="color:var(--red);font-weight:800">⚠ 検証期限超過</span>':''}</div>
       <div class="pc-title">${trunc(c.title,60)}</div>
       <div class="pc-meta">${c.kpi?('KPI: '+trunc(c.kpi,18)+' / '):''}${trunc(c.meta,38)}${over?(' ／ 完了から'+daysSince(c.release)+'日経過'):''}</div>${btn}</div>`;
     }).join('');
@@ -526,26 +559,58 @@ function renderBoard(){
 }
 function trunc(s,n){if(!s)return'';s=String(s).replace(/\n/g,' ');return s.length>n?s.slice(0,n)+'…':s;}
 
+/* ===== KPI×PDCA 連携 ===== */
+function fillKpiSel(){
+  const b=curBiz();const opts=[];
+  DATA.funnel.forEach(f=>opts.push({kind:'funnel',a:f[0],label:'ファネル：'+f[1],unit:f[1]+'/年',biz:b}));
+  (DATA.kpiTree[b]||[]).forEach(c=>{
+    opts.push({kind:'ch',a:c.channel,metric:'session',label:'チャネル：'+c.channel+' セッション',unit:'セッション/年',biz:b});
+    opts.push({kind:'ch',a:c.channel,metric:'mql',label:'チャネル：'+c.channel+' MQL',unit:'MQL/年',biz:b});
+    (c.pages||[]).forEach(p=>opts.push({kind:'pg',a:c.channel,b2:p.page,metric:'session',label:'ページ：'+c.channel+' / '+p.page+' セッション',unit:'セッション/年',biz:b}));
+  });
+  const cats=new Set();(DATA.shisaku[b]||[]).forEach(s=>{if(s.cat)cats.add(s.cat);});Object.keys(DATA.shisakuKpi[b]||{}).forEach(c=>cats.add(c));
+  [...cats].forEach(cat=>opts.push({kind:'honsu',a:cat,label:'施策本数：'+cat,unit:'本/年',biz:b}));
+  window.PDCA_KPI_OPTS=opts;
+  const sel=document.getElementById('pKpiSel');if(!sel)return;
+  sel.innerHTML='<option value="">選択…（任意）</option>'+opts.map((o,i)=>`<option value="${i}">${o.label}</option>`).join('');
+}
+function onPKpiSel(){const i=document.getElementById('pKpiSel').value;const o=(i!==''&&window.PDCA_KPI_OPTS)?window.PDCA_KPI_OPTS[i]:null;const u=document.getElementById('pTargetUnit');if(u)u.textContent=o?('単位：'+(o.unit||'')):'';}
+function selectPKpi(sel){const s=document.getElementById('pKpiSel');if(!s)return;const opts=window.PDCA_KPI_OPTS||[];if(!sel){s.value='';onPKpiSel();return;}const i=opts.findIndex(o=>o.kind===sel.kind&&o.a===sel.a&&(o.metric||'')===(sel.metric||'')&&(o.b2||'')===(sel.b2||''));s.value=i>=0?i:'';onPKpiSel();}
+function reflectPdcaToKpi(id){
+  const p=DATA.pdca.find(x=>x.id===id);if(!p)return;
+  const sel=p.kpiSel;if(!sel){toast('対象KPI（反映先）を選択してください');return;}
+  const v=parseFloat(String(p.targetVal==null?'':p.targetVal).replace(/[,\s]/g,''));
+  if(isNaN(v)){toast('次サイクルの目標値を数値で入力してください');return;}
+  const b=sel.biz||p.biz;let before=null;
+  if(sel.kind==='funnel'){DATA.targets[b]=DATA.targets[b]||{};before=DATA.targets[b][sel.a];DATA.targets[b][sel.a]=v;}
+  else if(sel.kind==='ch'){const o=chObj(b,sel.a);if(o){before=(sel.metric==='mql')?o.mqlTarget:o.sessionTarget;if(sel.metric==='mql')o.mqlTarget=v;else o.sessionTarget=v;}}
+  else if(sel.kind==='pg'){const o=pgObj(b,sel.a,sel.b2);if(o){before=o.sessionTarget;o.sessionTarget=v;}}
+  else if(sel.kind==='honsu'){DATA.shisakuKpi[b]=DATA.shisakuKpi[b]||{};DATA.shisakuKpi[b][sel.a]=DATA.shisakuKpi[b][sel.a]||{targetAnnual:null,monthly:{}};before=DATA.shisakuKpi[b][sel.a].targetAnnual;DATA.shisakuKpi[b][sel.a].targetAnnual=v;}
+  p.reflected=true;p.reflectedAt=new Date().toISOString().slice(0,10);p.beforeVal=before;
+  DATA.kpiOverrides=DATA.kpiOverrides||[];DATA.kpiOverrides.push({pdcaId:id,biz:b,kind:sel.kind,ref:sel.a,ref2:sel.b2||'',metric:sel.metric||'',label:sel.label,before:(before==null?null:before),after:v,date:p.reflectedAt});
+  markUnsaved();renderAll();toast('「'+sel.label+'」の目標を '+(before!=null?fmt(before):'—')+' → '+fmt(v)+' に反映しました');
+}
+function savePdcaAndReflect(){const id=savePdca();if(id){const p=DATA.pdca.find(x=>x.id===id);if(p&&p.kpiSel&&p.targetVal)reflectPdcaToKpi(id);else toast('対象KPIと目標値を入力すると反映できます');}}
 /* ===== PDCA MODAL ===== */
 function openPdcaModal(){initPdcaSelects();document.getElementById('pmTitle').textContent='PDCA案の作成';document.getElementById('pdcaModal').classList.add('on');}
 function closePdcaModal(){document.getElementById('pdcaModal').classList.remove('on');clearPdcaForm();}
-function initPdcaSelects(){const b=curBiz();const cats=[...new Set((DATA.shisaku[b]||[]).map(s=>s.cat).filter(Boolean))].sort();document.getElementById('pCat').innerHTML='<option value="">選択…</option>'+cats.map(c=>`<option>${c}</option>`).join('');fillShisakuSelect();fillSucSelect();}
+function initPdcaSelects(){const b=curBiz();const cats=[...new Set((DATA.shisaku[b]||[]).map(s=>s.cat).filter(Boolean))].sort();document.getElementById('pCat').innerHTML='<option value="">選択…</option>'+cats.map(c=>`<option>${c}</option>`).join('');fillShisakuSelect();fillSucSelect();fillKpiSel();}
 function fillSucSelect(){const b=curBiz();const list=(DATA.shisaku[b]||[]);document.getElementById('pSucSel').innerHTML='<option value="">（なし）</option><option value="__new">＋ 新規作成（施策内容のみ・No後で）</option>'+list.map(s=>`<option value="${s.no||''}">No.${s.no||'-'} ${trunc(s.naiyo||s.mokuteki,34)}</option>`).join('');onSucSel();}
 function onSucSel(){const v=document.getElementById('pSucSel').value;document.getElementById('pSucNew').classList.toggle('hidden',v!=='__new');}
 function fillShisakuSelect(){const b=curBiz(),cat=document.getElementById('pCat').value;let list=(DATA.shisaku[b]||[]);if(cat)list=list.filter(s=>catNorm(s.cat)===catNorm(cat)||s.cat===cat);document.getElementById('pShisaku').innerHTML='<option value="">選択…（任意）</option>'+list.map(s=>`<option value="${s.no||''}">No.${s.no||'-'} ${trunc(s.naiyo||s.mokuteki,38)}</option>`).join('');document.getElementById('baseInfo').innerHTML='';}
 function findShisaku(no){return(DATA.shisaku[curBiz()]||[]).find(s=>String(s.no)===String(no));}
 function showBaseShisaku(){const s=findShisaku(document.getElementById('pShisaku').value);if(!s){document.getElementById('baseInfo').innerHTML='';return;}document.getElementById('baseInfo').innerHTML=`<div class="info-box"><b>課題・目的：</b>${s.mokuteki||'—'}<br><b>手法：</b>${s.method||'—'}　<b>種類：</b>${s.cat||'—'}　<b>状態：</b>${s.status||'—'}<br><b>施策内容：</b>${s.naiyo||'—'}<br><b>現状KPI：</b>${s.kpi||'—'}　<b>目標：</b>${s.goal||'—'}　<b>実績：</b>${s.actual||'—'}</div>`;if(!document.getElementById('pIssue').value)document.getElementById('pIssue').value=s.mokuteki||'';}
-function savePdca(){const b=curBiz();const sucSel=document.getElementById('pSucSel').value;const sucNew=document.getElementById('pSucNew').value.trim();
-  const rec={id:ST.editId||('P'+Date.now()),biz:b,date:new Date().toISOString().slice(0,10),cat:document.getElementById('pCat').value,baseNo:document.getElementById('pShisaku').value,issue:document.getElementById('pIssue').value,act:document.getElementById('pAct').value,kpi:document.getElementById('pKpi').value,goal:document.getElementById('pGoal').value,due:document.getElementById('pDue').value,owner:document.getElementById('pOwner').value,result:document.getElementById('pResult').value,judge:document.getElementById('pJudge').value,memo:document.getElementById('pMemo').value,
+function savePdca(){const b=curBiz();const __ki=document.getElementById('pKpiSel').value;const __kSel=(__ki!==''&&window.PDCA_KPI_OPTS&&window.PDCA_KPI_OPTS[__ki])?window.PDCA_KPI_OPTS[__ki]:null;const sucSel=document.getElementById('pSucSel').value;const sucNew=document.getElementById('pSucNew').value.trim();
+  const rec={id:ST.editId||('P'+Date.now()),biz:b,date:new Date().toISOString().slice(0,10),cat:document.getElementById('pCat').value,baseNo:document.getElementById('pShisaku').value,issue:document.getElementById('pIssue').value,act:document.getElementById('pAct').value,kpi:(__kSel?__kSel.label:''),kpiSel:__kSel,baseVal:document.getElementById('pBaseVal').value,targetVal:document.getElementById('pTargetVal').value,goal:document.getElementById('pGoal').value,due:document.getElementById('pDue').value,owner:document.getElementById('pOwner').value,result:document.getElementById('pResult').value,judge:document.getElementById('pJudge').value,memo:document.getElementById('pMemo').value,
     successorNo:(sucSel&&sucSel!=='__new')?sucSel:'',successorName:(sucSel==='__new')?sucNew:''};
   if(!rec.act&&!rec.issue){toast('課題または改善案を入力してください');return;}
   // 新規引き継ぎ施策を登録（施策管理表に無いもの・No後付け）
   DATA.newShisaku=DATA.newShisaku||[];
   if(rec.successorName){DATA.newShisaku.push({id:'N'+Date.now(),biz:b,cat:rec.cat||'',name:rec.successorName,no:'',fromPdca:rec.id});}
   if(ST.editId){const i=DATA.pdca.findIndex(p=>p.id===ST.editId);if(i>=0)DATA.pdca[i]=rec;}else DATA.pdca.push(rec);
-  markUnsaved();closePdcaModal();if(ST.view==='pdca')renderBoard();toast('PDCA案を記録しました'+(rec.successorName?'（引き継ぎ施策をPlanに追加）':''));}
-function clearPdcaForm(){['pIssue','pAct','pGoal','pDue','pOwner','pResult','pMemo','pSucNew'].forEach(id=>document.getElementById(id).value='');document.getElementById('pJudge').value='';const ss=document.getElementById('pSucSel');if(ss)ss.value='';onSucSel();ST.editId=null;document.getElementById('editingBadge').classList.add('hidden');}
-function editPdca(id){const p=DATA.pdca.find(x=>x.id===id);if(!p)return;ST.biz=p.biz;initUI();openPdcaModal();ST.editId=id;document.getElementById('pmTitle').textContent='PDCA案の編集';document.getElementById('pCat').value=p.cat||'';fillShisakuSelect();document.getElementById('pShisaku').value=p.baseNo||'';showBaseShisaku();document.getElementById('pIssue').value=p.issue||'';document.getElementById('pAct').value=p.act||'';document.getElementById('pKpi').value=p.kpi||FUNNEL[0][1];document.getElementById('pGoal').value=p.goal||'';document.getElementById('pDue').value=p.due||'';document.getElementById('pOwner').value=p.owner||'';document.getElementById('pResult').value=p.result||'';document.getElementById('pJudge').value=p.judge||'';document.getElementById('pMemo').value=p.memo||'';
+  markUnsaved();closePdcaModal();if(ST.view==='pdca')renderBoard();toast('PDCA案を記録しました'+(rec.successorName?'（引き継ぎ施策をPlanに追加）':''));return rec.id;}
+function clearPdcaForm(){['pIssue','pAct','pGoal','pBaseVal','pTargetVal','pDue','pOwner','pResult','pMemo','pSucNew'].forEach(id=>document.getElementById(id).value='');const __pk=document.getElementById('pKpiSel');if(__pk)__pk.value='';const __pu=document.getElementById('pTargetUnit');if(__pu)__pu.textContent='';document.getElementById('pJudge').value='';const ss=document.getElementById('pSucSel');if(ss)ss.value='';onSucSel();ST.editId=null;document.getElementById('editingBadge').classList.add('hidden');}
+function editPdca(id){const p=DATA.pdca.find(x=>x.id===id);if(!p)return;ST.biz=p.biz;initUI();openPdcaModal();ST.editId=id;document.getElementById('pmTitle').textContent='PDCA案の編集';document.getElementById('pCat').value=p.cat||'';fillShisakuSelect();document.getElementById('pShisaku').value=p.baseNo||'';showBaseShisaku();document.getElementById('pIssue').value=p.issue||'';document.getElementById('pAct').value=p.act||'';selectPKpi(p.kpiSel);document.getElementById('pBaseVal').value=p.baseVal||'';document.getElementById('pTargetVal').value=p.targetVal||'';document.getElementById('pGoal').value=p.goal||'';document.getElementById('pDue').value=p.due||'';document.getElementById('pOwner').value=p.owner||'';document.getElementById('pResult').value=p.result||'';document.getElementById('pJudge').value=p.judge||'';document.getElementById('pMemo').value=p.memo||'';
   const ss=document.getElementById('pSucSel');if(p.successorName){ss.value='__new';document.getElementById('pSucNew').value=p.successorName;}else{ss.value=p.successorNo||'';document.getElementById('pSucNew').value='';}onSucSel();
   const eb=document.getElementById('editingBadge');eb.textContent='編集中';eb.classList.remove('hidden');}
 
@@ -606,7 +671,7 @@ document.getElementById('fHonsu').addEventListener('change',function(e){const f=
 // 実績ファイル (CV流入元)
 document.getElementById('fJisseki').addEventListener('change',function(e){const f=e.target.files[0];if(!f)return;let biz=null;['UN','SCH','MED','IS'].forEach(b=>{if(f.name.includes(b)||f.name.includes({UN:'UN',SCH:'SCH',MED:'MED',IS:'IS'}[b]))biz=b;});const rd=new FileReader();rd.onload=ev=>{try{const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});const sn=wb.SheetNames.find(s=>s.includes('流入チャネル別集計'));if(!sn){toast('「流入チャネル別集計」が見つかりません');return;}const rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:null});let hdr=-1;for(let i=0;i<rows.length;i++){const v=(rows[i]||[]).map(x=>String(x||'').trim().toLowerCase());if(v.includes('column')&&v.includes('organic')){hdr=i;break;}}if(hdr<0){toast('CV流入元テーブルが見つかりません');return;}const cols=rows[hdr].map(x=>String(x||'').trim());let totRow=null;for(let i=hdr+1;i<hdr+12&&i<rows.length;i++){if(rows[i]&&String(rows[i][0]).trim()==='総計')totRow=rows[i];}if(!totRow){toast('総計行が見つかりません');return;}const gmap={column:'コラム',case:'事例',mail:'メルマガ',listing:'広告',organic:'オーガニック',link:'参照',direct:'直接',others:'その他'};const total={};cols.forEach((c,j)=>{if(gmap[c]&&typeof totRow[j]==='number')total[gmap[c]]=totRow[j];});if(!biz){biz=prompt('事業コードを入力 (UN/SCH/MED/IS)','UN');}if(!biz)return;DATA.seikaCv[biz]={total};markUnsaved();closeImport();renderAll();toast(biz+'の成果CV流入元を取込');}catch(err){alert('取込エラー:'+err.message);}};rd.readAsArrayBuffer(f);e.target.value='';});
 // JSON
-document.getElementById('fJson').addEventListener('change',function(e){const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=ev=>{try{const d=JSON.parse(ev.target.result);['targets','actuals','shisaku','shisakuKpi','seikaCv','pdca','businesses','categories','shisakuCats','genList','daibunrui','fiscalYearLabel','fyStart','fyEnd','kpiTree','channelList','pageList','chActuals','pgActuals','actDirect','newShisaku'].forEach(k=>{if(d[k]!==undefined)DATA[k]=d[k];});
+document.getElementById('fJson').addEventListener('change',function(e){const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=ev=>{try{const d=JSON.parse(ev.target.result);['targets','actuals','shisaku','shisakuKpi','seikaCv','pdca','businesses','categories','shisakuCats','genList','daibunrui','fiscalYearLabel','fyStart','fyEnd','kpiTree','channelList','pageList','chActuals','pgActuals','actDirect','newShisaku','kpiOverrides'].forEach(k=>{if(d[k]!==undefined)DATA[k]=d[k];});
   // if ROI-style JSON (only targets+actuals in old shape) normalize actuals
   document.getElementById('unsavedDot').classList.remove('on');closeImport();initUI();renderAll();toast('データを取込みました');}catch(err){alert('JSON取込エラー:'+err.message);}};rd.readAsText(f);e.target.value='';});
 
@@ -621,7 +686,7 @@ function runExport(){const biz=[...document.querySelectorAll('#dlBiz input:check
   if(cont.includes('tree')){const aoa=[['事業','チャネル','ページ','セッション目標(按分)','セッション実績','差分','MQL目標','CVR目標']];biz.forEach(b=>{(DATA.kpiTree[b]||[]).forEach(c=>{const ct=(c.sessionTarget||0)*nM/12;let ca=0,ch2=false;months.forEach(m=>{const o=DATA.chActuals[b]&&DATA.chActuals[b][c.channel];if(o&&o[m]!=null){ca+=o[m];ch2=true;}});aoa.push([b,c.channel,'(計)',Math.round(ct),ch2?ca:'',ch2?Math.round(ca-ct):'',Math.round((c.mqlTarget||0)*nM/12*10)/10,c.cvrTarget||'']);(c.pages||[]).forEach(p=>{const pt=(p.sessionTarget||0)*nM/12;let pa=0,ph=false;months.forEach(m=>{const o=DATA.pgActuals[b]&&DATA.pgActuals[b][c.channel]&&DATA.pgActuals[b][c.channel][p.page];if(o&&o[m]!=null){pa+=o[m];ph=true;}});aoa.push([b,c.channel,p.page,Math.round(pt),ph?pa:'',ph?Math.round(pa-pt):'','','']);});});});XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),'KPIツリー');}
   if(cont.includes('shisakuKpi')){const aoa=[['事業','施策','実施目標(按分)','実施実績','乖離']];biz.forEach(b=>{const cats=Object.keys(DATA.shisakuKpi[b]||{});cats.forEach(cat=>{const o=DATA.shisakuKpi[b][cat];let ta=o.targetAnnual!=null?o.targetAnnual:(DEF_TARGET[cat]||0);const t=ta*nM/12;let a=0;months.forEach(m=>a+=(o.monthly&&o.monthly[m]||0));aoa.push([b,cat,Math.round(t*10)/10,a,Math.round((a-t)*10)/10]);});});XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),'施策別KPI');}
   if(cont.includes('seika')){const gl=DATA.genList;const aoa=[['事業',...gl]];biz.forEach(b=>{const t=(DATA.seikaCv[b]||{}).total||{};aoa.push([b,...gl.map(g=>t[g]!=null?t[g]:'')]);});XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),'成果CV寄与');}
-  if(cont.includes('pdca')){const head=['事業','記録日','カテゴリ','基施策No','課題','改善案(C案)','調整KPI','目標値','期限','担当','結果','判定','メモ'];const aoa=[head];DATA.pdca.filter(p=>biz.includes(p.biz)).forEach(p=>aoa.push([p.biz,p.date,p.cat,p.baseNo,p.issue,p.act,p.kpi,p.goal,p.due,p.owner,p.result,p.judge,p.memo]));XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),'PDCA記録');}
+  if(cont.includes('pdca')){const head=['事業','記録日','カテゴリ','基施策No','課題','改善案(C案)','対象KPI','元結果','次目標','目標補足','期限','担当','結果','判定','反映','メモ'];const aoa=[head];DATA.pdca.filter(p=>biz.includes(p.biz)).forEach(p=>aoa.push([p.biz,p.date,p.cat,p.baseNo,p.issue,p.act,p.kpi,p.baseVal,p.targetVal,p.goal,p.due,p.owner,p.result,p.judge,(p.reflected?'反映済':''),p.memo]));XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),'PDCA記録');}
   if(cont.includes('shisaku')){const head=['事業','No','大分類','課題・目的','手法','種類','施策内容','担当','状態','実施日','検証日','KPI','目標','実績'];const aoa=[head];biz.forEach(b=>(DATA.shisaku[b]||[]).forEach(s=>aoa.push([b,s.no,s.daibunrui,s.mokuteki,s.method,s.cat,s.naiyo,s.tanto,s.status,s.release,s.check,s.kpi,s.goal,s.actual])));XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),'施策一覧');}
   XLSX.writeFile(wb,`KPI_PDCA_${biz.join('-')}_${months[0]}_${months[months.length-1]}.xlsx`);closeDlModal();toast('Excelを出力しました');}
 
