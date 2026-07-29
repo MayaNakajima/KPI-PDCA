@@ -183,6 +183,8 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
       <select id="smStatus" onchange="renderShisakuMgmt()"></select>
       <select id="smTanto" onchange="renderShisakuMgmt()"></select>
       <button class="btn btn-ghost btn-sm" onclick="openColToggle()">列の表示切替</button>
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer"><input type="checkbox" id="smShowDeleted" onchange="renderShisakuMgmt()">削除候補を表示</label>
+      <button class="btn btn-green btn-sm" onclick="openSmEdit(curBiz(),null)">＋新規施策</button>
       <span class="org-bar-sp"></span>
       <div class="sub-tabs" id="viewShisakuSubTabs">
         <div class="sub-tab active" data-sv="table" onclick="setShisakuSubView('table')">📋 一覧</div>
@@ -308,7 +310,41 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
 <div class="modal-bg" id="smCardModal"><div class="modal" style="width:720px">
   <div class="modal-hd"><span id="smCardTitle">施策詳細</span><span style="cursor:pointer" onclick="closeSmCard()">✕</span></div>
   <div class="modal-bd" id="smCardBody"></div>
-  <div class="modal-ft"><button class="btn btn-ghost" onclick="closeSmCard()">閉じる</button></div>
+  <div class="modal-ft"><button class="btn btn-ghost" onclick="closeSmCard()">閉じる</button><button class="btn btn-primary" id="smCardEditBtn" onclick="closeSmCard();openSmEdit(this.dataset.biz,this.dataset.no)">編集</button></div>
+</div></div>
+
+<!-- SHISAKU EDIT MODAL (F2: 新規/編集) -->
+<div class="modal-bg" id="smEditModal"><div class="modal" style="width:760px">
+  <div class="modal-hd"><span id="smEditTitle">施策の編集</span><span style="cursor:pointer" onclick="closeSmEdit()">✕</span></div>
+  <div class="modal-bd">
+    <div class="form-grid">
+      <label>事業</label><select id="seBiz" class="wide"></select>
+      <label>No.</label><div id="seNo" class="muted" style="padding-top:7px">（保存時に自動採番）</div>
+      <label>大分類</label><input type="text" id="seDaibunrui" class="wide" list="mDaibunrui">
+      <label>課題・目的</label><textarea id="seMokuteki" class="wide"></textarea>
+      <label>関連施策No</label><input type="text" id="seKanren" class="wide">
+      <label>手法</label><input type="text" id="seMethod" class="wide" list="mMethod">
+      <label>施策種類</label><input type="text" id="seCat" class="wide" list="mCat">
+      <label>施策内容</label><textarea id="seNaiyo" class="wide"></textarea>
+      <label>担当</label><input type="text" id="seTanto" class="wide">
+      <label>事例会社</label><input type="text" id="seJirei" class="wide">
+      <label>コラム/メルマガ/WP No</label>
+      <div style="display:flex;gap:6px"><input type="text" id="seColumnNo" placeholder="コラムNo" style="width:33%"><input type="text" id="seMailNo" placeholder="メルマガNo" style="width:33%"><input type="text" id="seWpNo" placeholder="WPNo" style="width:33%"></div>
+      <label>backlog URL</label><input type="text" id="seBacklog" class="wide" placeholder="https://...">
+      <label>優先順位</label><input type="text" id="sePriority" class="wide" list="mPriority">
+      <label>状態</label><input type="text" id="seStatus" class="wide" list="mStatus">
+      <label>着手日</label><input type="date" id="seStartDate">
+      <label>公開/配信/実施日</label><input type="date" id="seRelease">
+      <label>検証日</label><input type="date" id="seCheck">
+      <label class="full">KPIセット（最大4組）</label>
+      <div class="full" id="seKpiSets"></div>
+      <div class="full"><button class="btn btn-ghost btn-sm" onclick="addSeKpiRow()">＋KPIを追加</button></div>
+    </div>
+    <datalist id="mDaibunrui"></datalist><datalist id="mMethod"></datalist><datalist id="mCat"></datalist><datalist id="mPriority"></datalist><datalist id="mStatus"></datalist><datalist id="mKpiItems"></datalist>
+  </div>
+  <div class="modal-ft"><span id="seEditingBadge" class="hdr-badge hidden" style="background:#fef3c7;color:#b45309;margin-right:auto"></span>
+    <button class="btn btn-ghost" onclick="closeSmEdit()">キャンセル</button>
+    <button class="btn btn-primary" onclick="saveSmEdit()">保存</button></div>
 </div></div>
 
 <div class="toast" id="toast"></div>
@@ -582,6 +618,8 @@ function smCmpVal(a,b){
 function smList(){
   ensureSmState();
   let out=[];for(const b of bizList())(DATA.shisaku[b]||[]).forEach(s=>out.push(Object.assign({biz:b},s)));
+  const showDeleted=!!(document.getElementById('smShowDeleted')||{}).checked;
+  out=out.filter(s=>showDeleted?!!s.deleteFlag:!s.deleteFlag);
   const q=((document.getElementById('smSearch')||{}).value||'').trim().toLowerCase();
   const fD=(document.getElementById('smDaibunrui')||{}).value||'';
   const fC=(document.getElementById('smCat')||{}).value||'';
@@ -611,7 +649,7 @@ function renderShisakuTable(list){
     const idx=ST.smSort.findIndex(s=>s.key===c[0]);
     const arrow=idx>=0?(ST.smSort[idx].dir>0?'▲':'▼')+(ST.smSort.length>1?('<sub>'+(idx+1)+'</sub>'):''):'';
     return `<th style="cursor:pointer" onclick="smSortClick('${c[0]}',event)">${escHtml(c[1])} ${arrow}</th>`;
-  }).join('')+'<th>詳細</th></tr></thead>';
+  }).join('')+'<th>操作</th></tr></thead>';
   let b='<tbody>';
   if(!list.length)b+=`<tr><td colspan="${cols.length+1}" class="empty">該当する施策がありません</td></tr>`;
   list.forEach(s=>{
@@ -621,10 +659,17 @@ function renderShisakuTable(list){
       else if(c[0]==='backlog'){const u=safeUrl(s.backlog);v=u?`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗開く</a>`:(s.backlog?escHtml(s.backlog):'—');}
       else v=s[c[0]]!=null&&s[c[0]]!==''?escHtml(trunc(String(s[c[0]]),40)):'—';
       return `<td class="${['no','priority'].includes(c[0])?'num':''}">${v}</td>`;
-    }).join('')+`<td><button class="btn btn-ghost btn-sm" onclick="openSmCard('${s.biz}','${String(s.no||'').replace(/'/g,"\\'")}')">詳細</button></td></tr>`;
+    }).join('')+`<td>${smRowActions(s)}</td></tr>`;
   });
   b+='</tbody>';
   document.getElementById('smTbl').innerHTML=h+b;
+}
+function smRowActions(s){
+  const bz=s.biz,no=String(s.no||'').replace(/'/g,"\\'");
+  if(s.deleteFlag){
+    return `<button class="btn btn-ghost btn-sm" onclick="restoreSm('${bz}','${no}')">復元</button> <button class="btn btn-danger btn-sm" onclick="purgeSm('${bz}','${no}')">完全削除</button>`;
+  }
+  return `<button class="btn btn-ghost btn-sm" onclick="openSmCard('${bz}','${no}')">詳細</button> <button class="btn btn-ghost btn-sm" onclick="openSmEdit('${bz}','${no}')">編集</button> <button class="btn btn-ghost btn-sm" onclick="duplicateSm('${bz}','${no}')">複製</button> <button class="btn btn-danger btn-sm" onclick="deleteSm('${bz}','${no}')">削除</button>`;
 }
 function renderShisakuCards(list){
   const wrap=document.getElementById('smCardWrap');
@@ -639,6 +684,7 @@ function renderShisakuCards(list){
         <div>担当：${escHtml(s.tanto||'—')}　検証日：${escHtml(s.check||'—')}</div>
       </div>
       ${kSets.map(k=>`<div class="sk-metric"><div class="sk-metric-lbl"><span>${escHtml(k.kpi||'KPI')}</span><span>${escHtml(k.actual||'—')} / ${escHtml(k.goal||'—')}</span></div></div>`).join('')}
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)" onclick="event.stopPropagation()">${smRowActions(s)}</div>
     </div>`;
   }).join('');
 }
@@ -681,6 +727,7 @@ function renderShisakuMgmt(){
 function openSmCard(biz,no){
   const s=(DATA.shisaku[biz]||[]).find(x=>String(x.no)===String(no));
   if(!s)return;
+  document.getElementById('smCardEditBtn').dataset.biz=biz;document.getElementById('smCardEditBtn').dataset.no=String(no);
   document.getElementById('smCardTitle').textContent=biz+' No.'+(s.no||'-')+' 施策詳細';
   const kSets=smKpiSets(s);
   const url=safeUrl(s.backlog);
@@ -704,6 +751,109 @@ function openSmCard(biz,no){
   document.getElementById('smCardModal').classList.add('on');
 }
 function closeSmCard(){document.getElementById('smCardModal').classList.remove('on');}
+
+/* ===== 施策管理タブ F2: アプリ内CRUD ===== */
+function nextShisakuNo(biz){DATA.shisakuNoSeq=DATA.shisakuNoSeq||{};const existing=(DATA.shisaku[biz]||[]).map(s=>{const m=String(s.no||'').match(new RegExp('^'+biz+'-(\\d+)$'));return m?parseInt(m[1],10):0;});const maxExisting=existing.length?Math.max(...existing):0;const n=Math.max(DATA.shisakuNoSeq[biz]||0,maxExisting)+1;DATA.shisakuNoSeq[biz]=n;return biz+'-'+String(n).padStart(3,'0');}
+function fillDatalist(id,vals){document.getElementById(id).innerHTML=(vals||[]).map(v=>`<option value="${escHtml(v)}">`).join('');}
+function seKpiRowHtml(k){k=k||{kpi:'',goal:'',actual:''};return `<div class="se-kpi-row" style="display:flex;gap:6px;margin-bottom:6px"><input type="text" class="se-kpi" placeholder="KPI" value="${escHtml(k.kpi||'')}" list="mKpiItems" style="flex:2"><input type="text" class="se-goal" placeholder="目標" value="${escHtml(k.goal||'')}" style="flex:1"><input type="text" class="se-actual" placeholder="実績" value="${escHtml(k.actual||'')}" style="flex:1"><button class="btn btn-danger btn-sm" onclick="this.closest('.se-kpi-row').remove()">✕</button></div>`;}
+function addSeKpiRow(k){document.getElementById('seKpiSets').insertAdjacentHTML('beforeend',seKpiRowHtml(k));}
+function openSmEdit(biz,no){
+  ensureShisakuMasters();
+  fillDatalist('mDaibunrui',DATA.shisakuMasters.daibunrui);
+  fillDatalist('mMethod',DATA.shisakuMasters.method);
+  fillDatalist('mCat',DATA.shisakuMasters.cat);
+  fillDatalist('mPriority',DATA.shisakuMasters.priority);
+  fillDatalist('mStatus',DATA.shisakuMasters.status);
+  fillDatalist('mKpiItems',DATA.shisakuMasters.kpiItems);
+  const bizSel=document.getElementById('seBiz');bizSel.innerHTML=BIZ4.map(b=>`<option ${b===biz?'selected':''}>${b}</option>`).join('');
+  bizSel.disabled=!!no;
+  const s=no?(DATA.shisaku[biz]||[]).find(x=>String(x.no)===String(no)):null;
+  document.getElementById('smEditTitle').textContent=s?(biz+' No.'+s.no+' を編集'):'新規施策の追加';
+  document.getElementById('seNo').textContent=s?s.no:'（保存時に自動採番：例 '+biz+'-001）';
+  document.getElementById('seEditingBadge').classList.toggle('hidden',!s);
+  if(s)document.getElementById('seEditingBadge').textContent='編集中：'+biz+' No.'+s.no;
+  const set=(id,v)=>document.getElementById(id).value=v||'';
+  set('seDaibunrui',s&&s.daibunrui);set('seMokuteki',s&&s.mokuteki);set('seKanren',s&&s.kanren);set('seMethod',s&&s.method);
+  set('seCat',s&&s.cat);set('seNaiyo',s&&s.naiyo);set('seTanto',s&&s.tanto);set('seJirei',s&&s.jireiCompany);
+  set('seColumnNo',s&&s.columnNo);set('seMailNo',s&&s.mailNo);set('seWpNo',s&&s.wpNo);set('seBacklog',s&&s.backlog);
+  set('sePriority',s&&s.priority);set('seStatus',s&&s.status);set('seStartDate',s&&s.startDate);set('seRelease',s&&s.release);set('seCheck',s&&s.check);
+  const kpiWrap=document.getElementById('seKpiSets');kpiWrap.innerHTML='';
+  const sets=s?smKpiSets(s):[];
+  (sets.length?sets:[{kpi:'',goal:'',actual:''}]).forEach(k=>addSeKpiRow(k));
+  document.getElementById('smEditModal').dataset.editBiz=biz||'';
+  document.getElementById('smEditModal').dataset.editNo=no||'';
+  document.getElementById('smEditModal').classList.add('on');
+}
+function closeSmEdit(){document.getElementById('smEditModal').classList.remove('on');}
+function saveSmEdit(){
+  const modal=document.getElementById('smEditModal');
+  const editBiz=modal.dataset.editBiz,editNo=modal.dataset.editNo;
+  const biz=document.getElementById('seBiz').value;
+  const naiyo=document.getElementById('seNaiyo').value.trim()||null;
+  const mokuteki=document.getElementById('seMokuteki').value.trim()||null;
+  if(!naiyo&&!mokuteki){alert('「課題・目的」または「施策内容」のいずれかを入力してください');return;}
+  const kpiSets=[...document.querySelectorAll('#seKpiSets .se-kpi-row')].map(row=>({
+    kpi:row.querySelector('.se-kpi').value.trim()||null,
+    goal:row.querySelector('.se-goal').value.trim()||null,
+    actual:row.querySelector('.se-actual').value.trim()||null
+  })).filter(k=>k.kpi||k.goal||k.actual);
+  const rec={
+    daibunrui:document.getElementById('seDaibunrui').value.trim()||null,
+    mokuteki,kanren:document.getElementById('seKanren').value.trim()||null,
+    method:document.getElementById('seMethod').value.trim()||null,
+    cat:document.getElementById('seCat').value.trim()||null,
+    naiyo,tanto:document.getElementById('seTanto').value.trim()||null,
+    jireiCompany:document.getElementById('seJirei').value.trim()||null,
+    columnNo:document.getElementById('seColumnNo').value.trim()||null,
+    mailNo:document.getElementById('seMailNo').value.trim()||null,
+    wpNo:document.getElementById('seWpNo').value.trim()||null,
+    backlog:document.getElementById('seBacklog').value.trim()||null,
+    priority:document.getElementById('sePriority').value.trim()||null,
+    status:document.getElementById('seStatus').value.trim()||null,
+    startDate:document.getElementById('seStartDate').value||null,
+    release:document.getElementById('seRelease').value||null,
+    check:document.getElementById('seCheck').value||null,
+    kpiSets,kpi:kpiSets[0]?kpiSets[0].kpi:null,goal:kpiSets[0]?kpiSets[0].goal:null,actual:kpiSets[0]?kpiSets[0].actual:null,
+    updatedAt:new Date().toISOString()
+  };
+  DATA.shisaku[biz]=DATA.shisaku[biz]||[];
+  if(editNo){
+    const idx=DATA.shisaku[editBiz].findIndex(x=>String(x.no)===String(editNo));
+    if(idx>=0){
+      const prev=DATA.shisaku[editBiz][idx];
+      DATA.shisaku[editBiz][idx]=Object.assign({},prev,rec,{no:prev.no,source:prev.source||'excel'});
+    }
+  }else{
+    const no=nextShisakuNo(biz);
+    DATA.shisaku[biz].push(Object.assign({no,source:'app',deleteFlag:false},rec));
+  }
+  mergeMasterList('daibunrui',[rec.daibunrui]);mergeMasterList('method',[rec.method]);mergeMasterList('cat',[rec.cat]);
+  mergeMasterList('status',[rec.status]);mergeMasterList('priority',[rec.priority]);
+  kpiSets.forEach(k=>mergeMasterList('kpiItems',[k.kpi]));
+  markUnsaved();closeSmEdit();renderAll();toast('施策を保存しました');
+}
+function duplicateSm(biz,no){
+  const s=(DATA.shisaku[biz]||[]).find(x=>String(x.no)===String(no));if(!s)return;
+  const copy=Object.assign({},s,{no:nextShisakuNo(biz),source:'app',deleteFlag:false,updatedAt:new Date().toISOString(),naiyo:(s.naiyo||'')+'（複製）'});
+  DATA.shisaku[biz].push(copy);
+  markUnsaved();renderAll();toast('複製しました：'+biz+' No.'+copy.no);
+}
+function deleteSm(biz,no){
+  const s=(DATA.shisaku[biz]||[]).find(x=>String(x.no)===String(no));if(!s)return;
+  if(!confirm(biz+' No.'+no+' を削除候補にしますか？（一覧の「削除候補を表示」で確認・復元・完全削除できます）'))return;
+  s.deleteFlag=true;s.updatedAt=new Date().toISOString();
+  markUnsaved();renderAll();toast('削除候補にしました');
+}
+function restoreSm(biz,no){
+  const s=(DATA.shisaku[biz]||[]).find(x=>String(x.no)===String(no));if(!s)return;
+  s.deleteFlag=false;s.updatedAt=new Date().toISOString();
+  markUnsaved();renderAll();toast('復元しました');
+}
+function purgeSm(biz,no){
+  if(!confirm(biz+' No.'+no+' を完全に削除します。元に戻せません。よろしいですか？'))return;
+  DATA.shisaku[biz]=(DATA.shisaku[biz]||[]).filter(x=>String(x.no)!==String(no));
+  markUnsaved();renderAll();toast('完全に削除しました');
+}
 /* 施策(施策管理表)のステージ：完了=Do完了→Check(検証待ち/検証中)。改善確定のActは施策自体では埋めない（PDCA案の完了で埋める）。 */
 function stageOf(status){if(!status)return 'P';if(status.includes('中止'))return null;if(status.includes('完了')||status.includes('検証')||status.includes('レビュー'))return 'C';if(status.includes('進行')||status.includes('保留'))return 'D';return 'P';}
 function catNorm(c){if(!c)return '';const m={'コラム':'コラム','メルマガ':'メルマガ','WP':'WP','ホワイトペーパー':'WP','事例':'事例','実績事例':'事例','動画':'動画','サイト改善':'サイト改善','分析':'分析','広告':'広告','リスティング':'広告','DSP':'広告','LP':'LP'};return m[c]||c;}
