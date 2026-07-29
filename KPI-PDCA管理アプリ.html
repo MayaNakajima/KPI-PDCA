@@ -134,6 +134,7 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
   <div class="hdr-sp"></div>
   <button class="hdr-btn hdr-btn-ghost" onclick="openImport()">📥 取込</button>
   <button class="hdr-btn hdr-btn-ghost" onclick="exportJSON()">💾 保存(JSON)</button>
+  <button class="hdr-btn hdr-btn-ghost" onclick="openBackupModal()">🗄 バックアップ設定</button>
   <button class="hdr-btn hdr-btn-primary" onclick="openDlModal()">⬇ Excel出力</button>
 </div>
 <div class="org-bar" id="orgBar"></div>
@@ -369,6 +370,23 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
     <div id="cfList"></div>
   </div>
   <div class="modal-ft"><button class="btn btn-ghost" onclick="closeConflictModal()">後で（アプリ版のまま保留）</button><button class="btn btn-primary" onclick="applyConflictResolutions()">選択を適用</button></div>
+</div></div>
+
+<!-- BACKUP SETTINGS MODAL (F5: 更新時バックアップ) -->
+<div class="modal-bg" id="backupModal"><div class="modal" style="width:600px">
+  <div class="modal-hd"><span>バックアップ設定</span><span style="cursor:pointer" onclick="closeBackupModal()">✕</span></div>
+  <div class="modal-bd">
+    <div class="section-note">「保存(JSON)」を押すたびに、指定フォルダへ日時付きスナップショットを自動保存します。Box同期フォルダを指定すれば、そのままBoxへも同期されます。<br><b>保持ルール：</b>直近30日分は日次で保持、それより古い分は月初（月内で最初に保存された日）のみ残し、それ以外は自動削除します。</div>
+    <div class="info-box" id="backupStatus" style="margin-bottom:10px">未設定</div>
+    <div class="chk-row">
+      <button class="btn btn-primary btn-sm" onclick="chooseBackupFolder()">バックアップ先フォルダを選択</button>
+      <button class="btn btn-ghost btn-sm" onclick="runManualBackup()">今すぐバックアップ</button>
+      <button class="btn btn-danger btn-sm" onclick="clearBackupFolder()">設定解除</button>
+    </div>
+    <div class="section-note" style="margin-top:10px" id="backupCompatNote"></div>
+    <div class="section-note" style="margin-top:6px">⚠ 深夜0時など、アプリを開いていない時間の自動実行・Teams通知は、PCの電源状態に依存しないクラウド側の仕組みが別途必要です（詳細のルールは後日ご指示予定）。ここで設定するのは「保存(JSON)を押した時」の自動バックアップです。</div>
+  </div>
+  <div class="modal-ft"><button class="btn btn-ghost" onclick="closeBackupModal()">閉じる</button></div>
 </div></div>
 
 <div class="toast" id="toast"></div>
@@ -1222,7 +1240,112 @@ document.getElementById('fJson').addEventListener('change',function(e){const f=e
 /* ROIダッシュボードJSON(actuals: sessions/cv/mql_by_channel...) を本アプリ形式(session/mql/...)へ変換 */
 function roiToAppActuals(roiAct){const out={};for(const b in roiAct){out[b]={};for(const m in roiAct[b]){const r=roiAct[b][m]||{};const mbc=r.mql_by_channel||{};let mql=0,has=false;for(const k in mbc){mql+=(mbc[k]||0);has=true;}out[b][m]={session:(r.sessions!=null?r.sessions:0),cv:(r.cv!=null?r.cv:0),mql:(has?mql:(r.cv!=null?r.cv:0)),sal:(r.sal!=null?r.sal:0),sql:(r.sql!=null?r.sql:0),jucyu:(r.jucyu!=null?r.jucyu:0),cost:((r.cost_items||[]).reduce((a,x)=>a+(x||0),0)),content:(r.content_count!=null?r.content_count:0)};}}return out;}
 /* ===== EXPORT ===== */
-function exportJSON(){DATA.savedAt=new Date().toISOString();const blob=new Blob([JSON.stringify(DATA)],{type:'application/json'});dl(blob,`kpi_pdca_data_${new Date().toISOString().slice(0,10)}.json`);document.getElementById('unsavedDot').classList.remove('on');toast('JSON保存。BOXの共有ファイルを更新してください');}
+function exportJSON(){
+  DATA.savedAt=new Date().toISOString();
+  const jsonStr=JSON.stringify(DATA);
+  const blob=new Blob([jsonStr],{type:'application/json'});
+  dl(blob,`kpi_pdca_data_${new Date().toISOString().slice(0,10)}.json`);
+  document.getElementById('unsavedDot').classList.remove('on');
+  writeBackupSnapshot(jsonStr).then(r=>{
+    if(r&&r.ok)toast('JSON保存。バックアップ先にも自動保存しました（'+r.pruned+'件整理）');
+    else toast('JSON保存。BOXの共有ファイルを更新してください'+(r&&r.reason?'（自動バックアップ:'+r.reason+'）':''));
+  });
+}
+/* ===== F5: 更新時バックアップ（保存のたびに指定フォルダへ日時付きスナップショット＋世代管理） ===== */
+const BACKUP_IDB_NAME='kpiPdcaBackupCfg',BACKUP_IDB_STORE='kv',BACKUP_IDB_KEY='backupDirHandle';
+function idbOpen(){return new Promise((resolve,reject)=>{const req=indexedDB.open(BACKUP_IDB_NAME,1);req.onupgradeneeded=()=>{req.result.createObjectStore(BACKUP_IDB_STORE);};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+async function idbGet(key){try{const db=await idbOpen();return new Promise((resolve,reject)=>{const tx=db.transaction(BACKUP_IDB_STORE,'readonly');const r=tx.objectStore(BACKUP_IDB_STORE).get(key);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}catch(e){return null;}}
+async function idbSet(key,val){try{const db=await idbOpen();return new Promise((resolve,reject)=>{const tx=db.transaction(BACKUP_IDB_STORE,'readwrite');tx.objectStore(BACKUP_IDB_STORE).put(val,key);tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);});}catch(e){return false;}}
+async function idbDel(key){try{const db=await idbOpen();return new Promise((resolve,reject)=>{const tx=db.transaction(BACKUP_IDB_STORE,'readwrite');tx.objectStore(BACKUP_IDB_STORE).delete(key);tx.oncomplete=()=>resolve(true);tx.onerror=()=>reject(tx.error);});}catch(e){return false;}}
+function backupApiSupported(){return typeof window.showDirectoryPicker==='function';}
+async function getBackupDirHandle(requestWrite){
+  if(!backupApiSupported())return null;
+  const h=await idbGet(BACKUP_IDB_KEY);
+  if(!h)return null;
+  try{
+    let perm=await h.queryPermission({mode:'readwrite'});
+    if(perm!=='granted'&&requestWrite)perm=await h.requestPermission({mode:'readwrite'});
+    if(perm!=='granted')return null;
+    return h;
+  }catch(e){return null;}
+}
+async function chooseBackupFolder(){
+  if(!backupApiSupported()){alert('お使いのブラウザはフォルダへの自動バックアップに対応していません（Chrome/Edge推奨）。「今すぐバックアップ」はダウンロードとして保存されます。');return;}
+  try{
+    const h=await window.showDirectoryPicker({mode:'readwrite'});
+    await idbSet(BACKUP_IDB_KEY,h);
+    toast('バックアップ先フォルダを設定しました：'+h.name);
+    refreshBackupStatus();
+  }catch(e){/* ユーザーがキャンセル */}
+}
+async function clearBackupFolder(){await idbDel(BACKUP_IDB_KEY);toast('バックアップ設定を解除しました');refreshBackupStatus();}
+function backupFileName(d){const p=n=>String(n).padStart(2,'0');return `kpi_pdca_backup_${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.json`;}
+async function writeBackupSnapshot(jsonStr){
+  const h=await getBackupDirHandle(true);
+  if(!h)return {ok:false,reason:backupApiSupported()?'未設定':'非対応ブラウザ'};
+  try{
+    const now=new Date();
+    const fh=await h.getFileHandle(backupFileName(now),{create:true});
+    const w=await fh.createWritable();
+    await w.write(jsonStr);await w.close();
+    const pruned=await pruneBackups(h);
+    return {ok:true,pruned};
+  }catch(e){return {ok:false,reason:e.message};}
+}
+function parseBackupName(name){const m=name.match(/^kpi_pdca_backup_(\d{4}-\d{2}-\d{2})_(\d{6})\.json$/);if(!m)return null;return{name,date:m[1],time:m[2]};}
+async function pruneBackups(dirHandle){
+  const files=[];
+  for await (const [name,entry] of dirHandle.entries()){if(entry.kind==='file'){const p=parseBackupName(name);if(p)files.push(p);}}
+  if(!files.length)return 0;
+  const byDate=new Map();
+  files.forEach(f=>{const arr=byDate.get(f.date)||[];arr.push(f);byDate.set(f.date,arr);});
+  const dates=[...byDate.keys()].sort().reverse(); // 新しい日付順
+  const keepDaily=new Set(dates.slice(0,30));
+  const older=dates.slice(30);
+  const monthFirst=new Map(); // YYYY-MM -> 最初に見つかった(最も古い)日付
+  older.slice().reverse().forEach(d=>{const ym=d.slice(0,7);if(!monthFirst.has(ym))monthFirst.set(ym,d);});
+  const keepMonthly=new Set(monthFirst.values());
+  let deleted=0;
+  for(const [date,arr] of byDate.entries()){
+    const isDailyKeep=keepDaily.has(date);
+    const isMonthlyKeep=keepMonthly.has(date);
+    arr.sort((a,b)=>a.time<b.time?1:-1); // 同日内は最新のみ残す
+    for(let i=0;i<arr.length;i++){
+      const keepThisFile=(i===0)&&(isDailyKeep||isMonthlyKeep);
+      if(!keepThisFile){try{await dirHandle.removeEntry(arr[i].name);deleted++;}catch(e){}}
+    }
+  }
+  return deleted;
+}
+async function runManualBackup(){
+  const jsonStr=JSON.stringify(Object.assign({},DATA,{savedAt:new Date().toISOString()}));
+  const r=await writeBackupSnapshot(jsonStr);
+  if(r.ok)toast('バックアップを作成しました（'+r.pruned+'件整理）');
+  else if(r.reason==='未設定'||r.reason==='非対応ブラウザ'){
+    const blob=new Blob([jsonStr],{type:'application/json'});
+    dl(blob,backupFileName(new Date()));
+    toast('バックアップ先フォルダ未設定のため、ダウンロードとして保存しました');
+  }else toast('バックアップに失敗しました：'+r.reason);
+  refreshBackupStatus();
+}
+async function refreshBackupStatus(){
+  const el=document.getElementById('backupStatus');if(!el)return;
+  if(!backupApiSupported()){
+    el.innerHTML='このブラウザはフォルダ自動バックアップ未対応です。「今すぐバックアップ」はファイルダウンロードになります。';
+    return;
+  }
+  const h=await getBackupDirHandle(false);
+  if(!h){el.innerHTML='バックアップ先フォルダ：<b>未設定</b>';return;}
+  let count=0;
+  try{for await (const [name] of h.entries()){if(parseBackupName(name))count++;}}catch(e){}
+  el.innerHTML='バックアップ先フォルダ：<b>'+escHtml(h.name)+'</b>／保存済みスナップショット：'+count+'件';
+}
+function openBackupModal(){
+  document.getElementById('backupCompatNote').textContent=backupApiSupported()?'':'※お使いのブラウザ（Firefox/Safari等）はフォルダへの自動書込みに対応していません。Chrome／Edgeでのご利用を推奨します。';
+  refreshBackupStatus();
+  document.getElementById('backupModal').classList.add('on');
+}
+function closeBackupModal(){document.getElementById('backupModal').classList.remove('on');}
 function dl(blob,name){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
 function openDlModal(){document.getElementById('dlBiz').innerHTML=BIZ4.map(b=>`<label><input type="checkbox" value="${b}" checked>${b}</label>`).join('');document.getElementById('dlContent').innerHTML=[['funnel','ファネルKPI'],['tree','KPIツリー(ﾁｬﾈﾙ/ﾍﾟｰｼﾞ)'],['shisakuKpi','施策別KPI'],['seika','成果CV寄与'],['pdca','PDCA記録'],['shisaku','施策一覧']].map(c=>`<label><input type="checkbox" value="${c[0]}" checked>${c[1]}</label>`).join('');const fr=document.getElementById('dlFrom'),to=document.getElementById('dlTo');fr.innerHTML=to.innerHTML='';FYM.forEach((m,i)=>{fr.innerHTML+=`<option value="${i}">${m}</option>`;to.innerHTML+=`<option value="${i}">${m}</option>`;});fr.value=ST.mFrom;to.value=ST.mTo;document.getElementById('dlModal').classList.add('on');}
 function closeDlModal(){document.getElementById('dlModal').classList.remove('on');}
