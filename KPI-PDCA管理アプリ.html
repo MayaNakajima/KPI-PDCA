@@ -118,6 +118,12 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
 .sub-tab{padding:5px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
 .sub-tab.active{background:var(--navy);color:#fff}.sub-tab:hover:not(.active){color:var(--blue)}
 #smTbl th sub{font-size:9px;font-weight:700}
+/* PDCA足場：要仕分け／実績未記入アラート */
+.triage-panel{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:10px}
+.triage-hd{font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.triage-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;flex-wrap:wrap}
+.triage-item:last-child{border-bottom:none}
+.triage-item .ti-title{flex:1;min-width:180px}
 </style>
 </head>
 <body>
@@ -206,6 +212,7 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
       <span class="legend"><span><i class="pc-P" style="background:#64748b"></i>Plan 計画</span><span><i style="background:var(--blue)"></i>Do 実行中</span><span><i style="background:var(--amber)"></i>Check 検証(施策完了→検証)</span><span><i style="background:var(--green)"></i>Act 改善完了</span></span>
     </div>
     <div class="section-note" style="margin:0 0 10px">流れ：<b>Plan</b>(未着手・検討中) → <b>Do</b>(進行中) → <b>Check</b>(実行<b>完了</b>＝検証待ち／検証中) → <b>Act</b>(改善・検証が<b>完了</b>)。施策の「完了」はDoの完了なのでCheck列に入ります。<b style="color:var(--red)">⚠ 検証期限超過</b>＝完了日から1ヶ月以上、検証日が未更新のカード。CA(検証・改善)が不要な施策は、Checkカードの「✓ CA不要→Act完了へ」でActへ移動できます。</div>
+    <div id="pdcaTriage" style="margin-bottom:14px"></div>
     <div class="pdca-board" id="pdcaBoard"></div>
   </div>
 
@@ -256,6 +263,7 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
       <div class="full" id="baseInfo"></div>
       <label><span class="step-badge">3</span>課題</label><textarea id="pIssue" placeholder="乖離の要因・課題"></textarea>
       <label>改善案（C案/Act）</label><textarea id="pAct" placeholder="乖離を埋める具体アクション"></textarea>
+      <label>判定基準<br><span class="muted" style="font-weight:400;font-size:10px">達成/未達の判断ライン</span></label><input type="text" id="pCriteria" placeholder="例：CVR 0.5%以上で達成">
       <label>対象KPI（反映先）</label><select id="pKpiSel" class="wide" onchange="onPKpiSel()"></select>
       <label>元施策の結果<br><span class="muted" style="font-weight:400;font-size:10px">前サイクルの実績値</span></label><input type="text" id="pBaseVal" placeholder="例：9">
       <label>次サイクルの目標値 <span id="pTargetUnit" class="muted" style="font-weight:400;font-size:10px"></span></label><input type="text" id="pTargetVal" placeholder="このKPIに設定する目標値（例：15）">
@@ -333,6 +341,12 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
       <label>backlog URL</label><input type="text" id="seBacklog" class="wide" placeholder="https://...">
       <label>優先順位</label><input type="text" id="sePriority" class="wide" list="mPriority">
       <label>状態</label><input type="text" id="seStatus" class="wide" list="mStatus">
+      <label>施策タイプ<br><span class="muted" style="font-weight:400;font-size:10px">PDCAの回し方の仕分け</span></label>
+      <select id="seShisakuType" class="wide">
+        <option value="">未設定</option>
+        <option value="単発完了型">単発完了型（一度きりの実施で目標達成なら完了）</option>
+        <option value="継続改善型">継続改善型（CVR改善など継続的にPDCAを回す）</option>
+      </select>
       <label>着手日</label><input type="date" id="seStartDate">
       <label>公開/配信/実施日</label><input type="date" id="seRelease">
       <label>検証日</label><input type="date" id="seCheck">
@@ -787,6 +801,7 @@ function openSmEdit(biz,no){
   set('seCat',s&&s.cat);set('seNaiyo',s&&s.naiyo);set('seTanto',s&&s.tanto);set('seJirei',s&&s.jireiCompany);
   set('seColumnNo',s&&s.columnNo);set('seMailNo',s&&s.mailNo);set('seWpNo',s&&s.wpNo);set('seBacklog',s&&s.backlog);
   set('sePriority',s&&s.priority);set('seStatus',s&&s.status);set('seStartDate',s&&s.startDate);set('seRelease',s&&s.release);set('seCheck',s&&s.check);
+  document.getElementById('seShisakuType').value=(s&&s.shisakuType)||'';
   const kpiWrap=document.getElementById('seKpiSets');kpiWrap.innerHTML='';
   const sets=s?smKpiSets(s):[];
   (sets.length?sets:[{kpi:'',goal:'',actual:''}]).forEach(k=>addSeKpiRow(k));
@@ -823,6 +838,7 @@ function saveSmEdit(){
     startDate:document.getElementById('seStartDate').value||null,
     release:document.getElementById('seRelease').value||null,
     check:document.getElementById('seCheck').value||null,
+    shisakuType:document.getElementById('seShisakuType').value||null,
     kpiSets,kpi:kpiSets[0]?kpiSets[0].kpi:null,goal:kpiSets[0]?kpiSets[0].goal:null,actual:kpiSets[0]?kpiSets[0].actual:null,
     updatedAt:new Date().toISOString()
   };
@@ -878,7 +894,45 @@ function actRevert(biz,no){DATA.actDirect=DATA.actDirect||{};DATA.actDirect[actK
 function openPdcaFrom(biz,no){ST.biz=biz;initUI();openPdcaModal();const s=(DATA.shisaku[biz]||[]).find(x=>String(x.no)===String(no));if(s){const pc=document.getElementById('pCat');if([...pc.options].some(o=>o.value===s.cat))pc.value=s.cat;else pc.value='';fillShisakuSelect();document.getElementById('pShisaku').value=String(no);showBaseShisaku();}}
 function assignNewNo(id){const n=(DATA.newShisaku||[]).find(x=>x.id===id);if(!n)return;const v=prompt('施策No.を入力（後から施策管理表に反映）',n.no||'');if(v===null)return;n.no=v.trim();markUnsaved();renderBoard();toast('施策Noを設定しました');}
 function delNew(id){if(!confirm('この新規施策を削除しますか？'))return;DATA.newShisaku=(DATA.newShisaku||[]).filter(x=>x.id!==id);markUnsaved();renderBoard();}
+/* F4: PDCA足場（単発/継続の仕分け・実績未記入・PDCA停滞のアラート） */
+function setShisakuType(biz,no,type){
+  const s=(DATA.shisaku[biz]||[]).find(x=>String(x.no)===String(no));if(!s)return;
+  s.shisakuType=type;s.updatedAt=new Date().toISOString();
+  markUnsaved();renderBoard();
+  if(type==='継続改善型')openPdcaFrom(biz,no);
+  else toast(biz+' No.'+no+' を単発完了型として仕分けました');
+}
+function shisakuNeedsActual(s){
+  if(!s.check)return false;
+  if(String(s.check).slice(0,10)>todayStr())return false;
+  const sets=smKpiSets(s);
+  if(!sets.length)return !s.actual;
+  return sets.every(k=>!k.actual);
+}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function renderTriagePanel(){
+  const wrap=document.getElementById('pdcaTriage');if(!wrap)return;
+  const list=allShisaku().filter(s=>!s.deleteFlag);
+  const needsTriage=list.filter(s=>s.status&&s.status.includes('完了')&&isOverdue(s)&&!s.shisakuType);
+  const needsActual=list.filter(shisakuNeedsActual);
+  if(!needsTriage.length&&!needsActual.length){wrap.innerHTML='';return;}
+  let html='';
+  if(needsTriage.length){
+    html+=`<div class="triage-panel"><div class="triage-hd">🔀 要仕分け（PDで止まっている施策：${needsTriage.length}件）<span class="muted" style="font-weight:400;font-size:11px">検証日を超えても「単発完了」か「継続してPDCAを回す」か未設定の施策です</span></div>`;
+    html+=needsTriage.slice(0,30).map(s=>`<div class="triage-item"><span class="ti-title"><b>${escHtml(s.biz)} No.${escHtml(s.no||'-')}</b> ${escHtml(trunc(s.naiyo||s.mokuteki||'',50))}</span><button class="btn btn-ghost btn-sm" onclick="setShisakuType('${s.biz}','${String(s.no).replace(/'/g,"\\'")}','単発完了型')">単発完了とする</button><button class="btn btn-primary btn-sm" onclick="setShisakuType('${s.biz}','${String(s.no).replace(/'/g,"\\'")}','継続改善型')">継続してPDCAを回す</button></div>`).join('');
+    if(needsTriage.length>30)html+=`<div class="muted" style="margin-top:6px">他${needsTriage.length-30}件（フィルタで絞り込んでください）</div>`;
+    html+='</div>';
+  }
+  if(needsActual.length){
+    html+=`<div class="triage-panel"><div class="triage-hd">📝 実績未記入（検証日超過：${needsActual.length}件）<span class="muted" style="font-weight:400;font-size:11px">検証日を過ぎているのにKPIの実績が未記入の施策です</span></div>`;
+    html+=needsActual.slice(0,30).map(s=>`<div class="triage-item"><span class="ti-title"><b>${escHtml(s.biz)} No.${escHtml(s.no||'-')}</b> ${escHtml(trunc(s.naiyo||s.mokuteki||'',50))}　検証日：${escHtml(s.check||'—')}</span><button class="btn btn-ghost btn-sm" onclick="openSmEdit('${s.biz}','${String(s.no).replace(/'/g,"\\'")}')">実績を入力</button></div>`).join('');
+    if(needsActual.length>30)html+=`<div class="muted" style="margin-top:6px">他${needsActual.length-30}件（フィルタで絞り込んでください）</div>`;
+    html+='</div>';
+  }
+  wrap.innerHTML=html;
+}
 function renderBoard(){
+  renderTriagePanel();
   DATA.actDirect=DATA.actDirect||{};DATA.newShisaku=DATA.newShisaku||[];
   const catF=document.getElementById('pbCat').value;
   const cols={P:[],D:[],C:[],A:[]};
@@ -959,7 +1013,7 @@ function fillShisakuSelect(){const b=curBiz(),cat=document.getElementById('pCat'
 function findShisaku(no){return(DATA.shisaku[curBiz()]||[]).find(s=>String(s.no)===String(no));}
 function showBaseShisaku(){const s=findShisaku(document.getElementById('pShisaku').value);if(!s){document.getElementById('baseInfo').innerHTML='';return;}document.getElementById('baseInfo').innerHTML=`<div class="info-box"><b>課題・目的：</b>${s.mokuteki||'—'}<br><b>手法：</b>${s.method||'—'}　<b>種類：</b>${s.cat||'—'}　<b>状態：</b>${s.status||'—'}<br><b>施策内容：</b>${s.naiyo||'—'}<br><b>現状KPI：</b>${s.kpi||'—'}　<b>目標：</b>${s.goal||'—'}　<b>実績：</b>${s.actual||'—'}</div>`;if(!document.getElementById('pIssue').value)document.getElementById('pIssue').value=s.mokuteki||'';}
 function savePdca(){const b=curBiz();const __ki=document.getElementById('pKpiSel').value;const __kSel=(__ki!==''&&window.PDCA_KPI_OPTS&&window.PDCA_KPI_OPTS[__ki])?window.PDCA_KPI_OPTS[__ki]:null;const sucSel=document.getElementById('pSucSel').value;const sucNew=document.getElementById('pSucNew').value.trim();
-  const rec={id:ST.editId||('P'+Date.now()),biz:b,date:new Date().toISOString().slice(0,10),cat:document.getElementById('pCat').value,baseNo:document.getElementById('pShisaku').value,issue:document.getElementById('pIssue').value,act:document.getElementById('pAct').value,kpi:(__kSel?__kSel.label:''),kpiSel:__kSel,baseVal:document.getElementById('pBaseVal').value,targetVal:document.getElementById('pTargetVal').value,goal:document.getElementById('pGoal').value,due:document.getElementById('pDue').value,owner:document.getElementById('pOwner').value,result:document.getElementById('pResult').value,judge:document.getElementById('pJudge').value,memo:document.getElementById('pMemo').value,
+  const rec={id:ST.editId||('P'+Date.now()),biz:b,date:new Date().toISOString().slice(0,10),cat:document.getElementById('pCat').value,baseNo:document.getElementById('pShisaku').value,issue:document.getElementById('pIssue').value,act:document.getElementById('pAct').value,criteria:document.getElementById('pCriteria').value,kpi:(__kSel?__kSel.label:''),kpiSel:__kSel,baseVal:document.getElementById('pBaseVal').value,targetVal:document.getElementById('pTargetVal').value,goal:document.getElementById('pGoal').value,due:document.getElementById('pDue').value,owner:document.getElementById('pOwner').value,result:document.getElementById('pResult').value,judge:document.getElementById('pJudge').value,memo:document.getElementById('pMemo').value,
     successorNo:(sucSel&&sucSel!=='__new')?sucSel:'',successorName:(sucSel==='__new')?sucNew:''};
   if(!rec.act&&!rec.issue){toast('課題または改善案を入力してください');return;}
   // 新規引き継ぎ施策を登録（施策管理表に無いもの・No後付け）
@@ -967,8 +1021,8 @@ function savePdca(){const b=curBiz();const __ki=document.getElementById('pKpiSel
   if(rec.successorName){DATA.newShisaku.push({id:'N'+Date.now(),biz:b,cat:rec.cat||'',name:rec.successorName,no:'',fromPdca:rec.id});}
   if(ST.editId){const i=DATA.pdca.findIndex(p=>p.id===ST.editId);if(i>=0)DATA.pdca[i]=rec;}else DATA.pdca.push(rec);
   markUnsaved();closePdcaModal();if(ST.view==='pdca')renderBoard();toast('PDCA案を記録しました'+(rec.successorName?'（引き継ぎ施策をPlanに追加）':''));return rec.id;}
-function clearPdcaForm(){['pIssue','pAct','pGoal','pBaseVal','pTargetVal','pDue','pOwner','pResult','pMemo','pSucNew'].forEach(id=>document.getElementById(id).value='');const __pk=document.getElementById('pKpiSel');if(__pk)__pk.value='';const __pu=document.getElementById('pTargetUnit');if(__pu)__pu.textContent='';document.getElementById('pJudge').value='';const ss=document.getElementById('pSucSel');if(ss)ss.value='';onSucSel();ST.editId=null;document.getElementById('editingBadge').classList.add('hidden');}
-function editPdca(id){const p=DATA.pdca.find(x=>x.id===id);if(!p)return;ST.biz=p.biz;initUI();openPdcaModal();ST.editId=id;document.getElementById('pmTitle').textContent='PDCA案の編集';document.getElementById('pCat').value=p.cat||'';fillShisakuSelect();document.getElementById('pShisaku').value=p.baseNo||'';showBaseShisaku();document.getElementById('pIssue').value=p.issue||'';document.getElementById('pAct').value=p.act||'';selectPKpi(p.kpiSel);document.getElementById('pBaseVal').value=p.baseVal||'';document.getElementById('pTargetVal').value=p.targetVal||'';document.getElementById('pGoal').value=p.goal||'';document.getElementById('pDue').value=p.due||'';document.getElementById('pOwner').value=p.owner||'';document.getElementById('pResult').value=p.result||'';document.getElementById('pJudge').value=p.judge||'';document.getElementById('pMemo').value=p.memo||'';
+function clearPdcaForm(){['pIssue','pAct','pCriteria','pGoal','pBaseVal','pTargetVal','pDue','pOwner','pResult','pMemo','pSucNew'].forEach(id=>document.getElementById(id).value='');const __pk=document.getElementById('pKpiSel');if(__pk)__pk.value='';const __pu=document.getElementById('pTargetUnit');if(__pu)__pu.textContent='';document.getElementById('pJudge').value='';const ss=document.getElementById('pSucSel');if(ss)ss.value='';onSucSel();ST.editId=null;document.getElementById('editingBadge').classList.add('hidden');}
+function editPdca(id){const p=DATA.pdca.find(x=>x.id===id);if(!p)return;ST.biz=p.biz;initUI();openPdcaModal();ST.editId=id;document.getElementById('pmTitle').textContent='PDCA案の編集';document.getElementById('pCat').value=p.cat||'';fillShisakuSelect();document.getElementById('pShisaku').value=p.baseNo||'';showBaseShisaku();document.getElementById('pIssue').value=p.issue||'';document.getElementById('pAct').value=p.act||'';document.getElementById('pCriteria').value=p.criteria||'';selectPKpi(p.kpiSel);document.getElementById('pBaseVal').value=p.baseVal||'';document.getElementById('pTargetVal').value=p.targetVal||'';document.getElementById('pGoal').value=p.goal||'';document.getElementById('pDue').value=p.due||'';document.getElementById('pOwner').value=p.owner||'';document.getElementById('pResult').value=p.result||'';document.getElementById('pJudge').value=p.judge||'';document.getElementById('pMemo').value=p.memo||'';
   const ss=document.getElementById('pSucSel');if(p.successorName){ss.value='__new';document.getElementById('pSucNew').value=p.successorName;}else{ss.value=p.successorNo||'';document.getElementById('pSucNew').value='';}onSucSel();
   const eb=document.getElementById('editingBadge');eb.textContent='編集中';eb.classList.remove('hidden');}
 
