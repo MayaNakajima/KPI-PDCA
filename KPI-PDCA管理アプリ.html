@@ -118,6 +118,10 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
 .sub-tab{padding:5px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
 .sub-tab.active{background:var(--navy);color:#fff}.sub-tab:hover:not(.active){color:var(--blue)}
 #smTbl th sub{font-size:9px;font-weight:700}
+/* 施策管理タブ 一覧：表示密度を上げ、列幅は内容基準・横スクロール可、操作ボタンは1行 */
+#smTbl th,#smTbl td{padding:3px 8px;white-space:nowrap;vertical-align:middle}
+#smTbl td .btn-sm{white-space:nowrap}
+#smTableWrap{overflow:auto}
 /* PDCA足場：要仕分け／実績未記入アラート */
 .triage-panel{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:10px}
 .triage-hd{font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:8px}
@@ -370,7 +374,7 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
 <div class="modal-bg" id="conflictModal"><div class="modal" style="width:720px">
   <div class="modal-hd"><span>施策の競合解決（<span id="cfCount">0</span>件）</span><span style="cursor:pointer" onclick="closeConflictModal()">✕</span></div>
   <div class="modal-bd">
-    <div class="section-note">Excel取込後にアプリ側でも更新されていた施策です。行ごとにExcel版／アプリ版のどちらを採用するか選択してください。</div>
+    <div class="section-note">Excel取込後にアプリ側でも更新されていた施策です。施策ごとに解決方法（Excel採用／アプリ採用／項目ごとにマージ／別施策として両方残す）を選択してください。</div>
     <div id="cfList"></div>
   </div>
   <div class="modal-ft"><button class="btn btn-ghost" onclick="closeConflictModal()">後で（アプリ版のまま保留）</button><button class="btn btn-primary" onclick="applyConflictResolutions()">選択を適用</button></div>
@@ -466,7 +470,19 @@ function aggA(k){let s=0;for(const b of bizList())s+=actualFor(b,k);return s;}
 function skActual(b,cat){const o=DATA.shisakuKpi[b]&&DATA.shisakuKpi[b][cat];if(!o)return 0;let s=0;for(const m of selMonths())s+=(o.monthly[m]||0);return s;}
 function skTargetAnnual(b,cat){const o=DATA.shisakuKpi[b]&&DATA.shisakuKpi[b][cat];let t=o&&o.targetAnnual;if(t==null)t=DEF_TARGET[cat]||0;return t;}
 function skTarget(b,cat){return skTargetAnnual(b,cat)*nMonths()/12;}
-function skCats(){const s=new Set();for(const b of bizList()){const o=DATA.shisakuKpi[b]||{};Object.keys(o).forEach(c=>s.add(c));}DATA.shisakuCats.forEach(c=>{if([...s].length<3)s.add(c);});return [...s];}
+/* 施策種類の一元化：種類マスタ＋施策のcat＋本数管理キー＋既定カテゴリの和集合を単一の正として全画面が参照 */
+function allShisakuCats(biz){
+  if(typeof ensureShisakuMasters==='function')ensureShisakuMasters();
+  const s=new Set();const bl=biz?[biz]:bizList();
+  for(const b of bl){
+    (DATA.shisaku[b]||[]).forEach(x=>{if(x.cat)s.add(x.cat);});
+    Object.keys(DATA.shisakuKpi[b]||{}).forEach(c=>s.add(c));
+  }
+  ((DATA.shisakuMasters&&DATA.shisakuMasters.cat)||[]).forEach(c=>{if(c)s.add(c);});
+  (DATA.shisakuCats||[]).forEach(c=>{if(c)s.add(c);});
+  return [...s];
+}
+function skCats(){return allShisakuCats(null);}
 /* 成果CV寄与 */
 function cvContrib(b){const o=DATA.seikaCv[b];return o&&o.total?o.total:{};}
 function cvAgg(){const out={};for(const b of bizList()){const t=cvContrib(b);for(const k in t)out[k]=(out[k]||0)+t[k];}return out;}
@@ -649,11 +665,15 @@ function allShisaku(){let out=[];for(const b of bizList())(DATA.shisaku[b]||[]).
 
 /* ===== 施策管理タブ (F1: 全列取込＋一覧＋カード表示) ===== */
 const SM_COLS=[['no','No'],['daibunrui','大分類'],['mokuteki','課題・目的'],['kanren','関連No'],['method','手法'],['cat','種類'],['naiyo','施策内容'],['tanto','担当'],['status','状態'],['startDate','着手日'],['release','公開/実施日'],['check','検証日'],['kpi','KPI①'],['goal','目標①'],['actual','実績①'],['jireiCompany','事例会社'],['columnNo','コラムNo'],['mailNo','メルマガNo'],['wpNo','WPNo'],['priority','優先度'],['backlog','Backlog']];
-const SM_DEFAULT_VISIBLE=new Set(['no','daibunrui','cat','naiyo','tanto','status','release','check','kpi','goal','actual']);
+const SM_DEFAULT_VISIBLE=new Set(SM_COLS.map(c=>c[0]));
+function loadSmPrefs(){try{return JSON.parse(localStorage.getItem('smPrefs_v1')||'null')||{};}catch(e){return {};}}
+function saveSmPrefs(){try{localStorage.setItem('smPrefs_v1',JSON.stringify({smSort:ST.smSort,smCols:ST.smCols}));}catch(e){}}
 function ensureSmState(){
   if(!ST.smSub)ST.smSub='table';
-  if(!ST.smSort)ST.smSort=[{key:'no',dir:1}];
-  if(!ST.smCols){ST.smCols={};SM_COLS.forEach(c=>ST.smCols[c[0]]=SM_DEFAULT_VISIBLE.has(c[0]));}
+  const pref=ST._smPrefLoaded?null:loadSmPrefs();
+  if(!ST.smSort)ST.smSort=(pref&&Array.isArray(pref.smSort)&&pref.smSort.length)?pref.smSort:[{key:'no',dir:1}];
+  if(!ST.smCols){ST.smCols={};SM_COLS.forEach(c=>ST.smCols[c[0]]=SM_DEFAULT_VISIBLE.has(c[0]));if(pref&&pref.smCols)SM_COLS.forEach(c=>{if(pref.smCols[c[0]]!==undefined)ST.smCols[c[0]]=!!pref.smCols[c[0]];});}
+  ST._smPrefLoaded=true;
   if(!ST.smFilters)ST.smFilters={daibunrui:[],cat:[],status:[],tanto:[]};
   if(ST.smFilterOpen===undefined)ST.smFilterOpen=null;
 }
@@ -683,7 +703,7 @@ function smSortClick(key,ev){
   const idx=ST.smSort.findIndex(s=>s.key===key);
   if(ev&&ev.shiftKey){if(idx>=0)ST.smSort[idx].dir*=-1;else ST.smSort.push({key,dir:1});}
   else{if(idx===0&&ST.smSort.length===1)ST.smSort[0].dir*=-1;else ST.smSort=[{key,dir:1}];}
-  renderShisakuMgmt();
+  saveSmPrefs();renderShisakuMgmt();
 }
 function smPillCls(st){const m={'完了':'pill-done','進行中':'pill-prog','保留':'pill-hold','中止':'pill-stop','未着手':'pill-todo','検討中':'pill-todo','レビュー中':'pill-prog','検証中':'pill-prog','遅延':'pill-hold'};return m[st]||'pill-todo';}
 function smKpiSets(s){const sets=(s.kpiSets&&s.kpiSets.length?s.kpiSets:[{kpi:s.kpi,goal:s.goal,actual:s.actual}]);return sets.filter(k=>k.kpi||k.goal||k.actual);}
@@ -765,7 +785,7 @@ function openColToggle(){
   const p=document.getElementById('smColPanel');
   p.classList.toggle('hidden');
   if(p.classList.contains('hidden'))return;
-  p.innerHTML='<div class="chk-row">'+SM_COLS.map(c=>`<label><input type="checkbox" ${ST.smCols[c[0]]?'checked':''} onchange="ST.smCols['${c[0]}']=this.checked;renderShisakuMgmt()">${escHtml(c[1])}</label>`).join('')+'</div>';
+  p.innerHTML='<div class="chk-row">'+SM_COLS.map(c=>`<label><input type="checkbox" ${ST.smCols[c[0]]?'checked':''} onchange="ST.smCols['${c[0]}']=this.checked;saveSmPrefs();renderShisakuMgmt()">${escHtml(c[1])}</label>`).join('')+'</div>';
 }
 function renderShisakuMgmt(){
   ensureSmState();
@@ -917,7 +937,7 @@ function purgeSm(biz,no){
 /* 施策(施策管理表)のステージ：完了=Do完了→Check(検証待ち/検証中)。改善確定のActは施策自体では埋めない（PDCA案の完了で埋める）。 */
 function stageOf(status){if(!status)return 'P';if(status.includes('中止'))return null;if(status.includes('完了')||status.includes('検証')||status.includes('レビュー'))return 'C';if(status.includes('進行')||status.includes('保留'))return 'D';return 'P';}
 function catNorm(c){if(!c)return '';const m={'コラム':'コラム','メルマガ':'メルマガ','WP':'WP','ホワイトペーパー':'WP','事例':'事例','実績事例':'事例','動画':'動画','サイト改善':'サイト改善','分析':'分析','広告':'広告','リスティング':'広告','DSP':'広告','LP':'LP'};return m[c]||c;}
-function initBoardFilters(){const cats=['(全カテゴリ)'].concat(DATA.shisakuCats);const el=document.getElementById('pbCat');const cur=el.value;el.innerHTML=cats.map(c=>`<option>${c}</option>`).join('');if(cats.includes(cur))el.value=cur;}
+function initBoardFilters(){const cats=['(全カテゴリ)'].concat(allShisakuCats(null));const el=document.getElementById('pbCat');const cur=el.value;el.innerHTML=cats.map(c=>`<option>${c}</option>`).join('');if(cats.includes(cur))el.value=cur;}
 function daysSince(dstr){if(!dstr)return null;const d=new Date(dstr);if(isNaN(d))return null;return Math.floor((Date.now()-d.getTime())/86400000);}
 function dateLE(d,ref){return d&&String(d).slice(0,10)<=ref;}
 /* 完了ステータスの施策で、公開/配信/実施日から1ヶ月以上、検証日が未更新なら期限超過 */
@@ -1014,8 +1034,8 @@ function fillKpiSel(){
     opts.push({kind:'ch',a:c.channel,metric:'mql',label:'チャネル：'+c.channel+' MQL',unit:'MQL/年',biz:b});
     (c.pages||[]).forEach(p=>opts.push({kind:'pg',a:c.channel,b2:p.page,metric:'session',label:'ページ：'+c.channel+' / '+p.page+' セッション',unit:'セッション/年',biz:b}));
   });
-  const cats=new Set();(DATA.shisaku[b]||[]).forEach(s=>{if(s.cat)cats.add(s.cat);});Object.keys(DATA.shisakuKpi[b]||{}).forEach(c=>cats.add(c));
-  [...cats].forEach(cat=>opts.push({kind:'honsu',a:cat,label:'施策本数：'+cat,unit:'本/年',biz:b}));
+  const cats=allShisakuCats(b);
+  cats.forEach(cat=>opts.push({kind:'honsu',a:cat,label:'施策本数：'+cat,unit:'本/年',biz:b}));
   window.PDCA_KPI_OPTS=opts;
   const sel=document.getElementById('pKpiSel');if(!sel)return;
   sel.innerHTML='<option value="">選択…（任意）</option>'+opts.map((o,i)=>`<option value="${i}">${o.label}</option>`).join('');
@@ -1067,7 +1087,7 @@ function ssum(){let s=0;document.querySelectorAll('#dataTbl input[data-sk]').for
 function objSum(o){if(!o)return 0;let s=0;for(const k in o)if(o[k]!=null)s+=o[k];return s;}
 function renderDataView(){const mode=document.getElementById('dataMode').value;const b=curBiz();
   if(mode==='honsu'){document.getElementById('dataNote').innerHTML=`事業：<b>${b}</b>　施策別の実施本数。年間目標は編集可、月次実績は本数管理由来（編集可）。<b>計</b>＝月次実績の年間合計。`;
-    const cats=Object.keys(DATA.shisakuKpi[b]||{});const extra=DATA.shisakuCats.filter(c=>!cats.includes(c));const all=cats.concat(extra);
+    const all=allShisakuCats(b);
     let h='<thead><tr><th>施策</th><th class="num">年間目標</th><th class="num" style="background:#eef2f7">計</th>'+FYM.map(m=>`<th class="num">${mLabel(m)}</th>`).join('')+'</tr></thead><tbody>';
     all.forEach((cat,ri)=>{const o=(DATA.shisakuKpi[b]||{})[cat]||{monthly:{}};const rid='h'+ri;h+=`<tr><td><b>${cat}</b></td><td class="num"><input type="number" data-cat="${cat}" data-k="target" value="${o.targetAnnual!=null?o.targetAnnual:''}" placeholder="${DEF_TARGET[cat]||''}" style="width:70px;text-align:right"></td><td class="num" style="background:#f8fafc"><b id="tot-${rid}">${fmt(objSum(o.monthly))}</b></td>`+FYM.map(m=>`<td class="num"><input type="number" data-cat="${cat}" data-m="${m}" data-row="${rid}" oninput="sr('${rid}')" value="${o.monthly&&o.monthly[m]!=null?o.monthly[m]:''}" style="width:52px;text-align:right"></td>`).join('')+'</tr>';});
     h+='</tbody>';document.getElementById('dataTbl').innerHTML=h;
@@ -1155,34 +1175,65 @@ function mergeShisakuImport(biz,importedRecs){
   return conflicts;
 }
 let PENDING_CONFLICTS=[];
+function kpiSetsKey(rec){return JSON.stringify((rec.kpiSets||[]).map(x=>[x.kpi||null,x.goal||null,x.actual||null]));}
 function openConflictModal(conflicts,onDoneMsg){
-  PENDING_CONFLICTS=conflicts.map(c=>Object.assign({choice:'excel'},c));
+  PENDING_CONFLICTS=conflicts.map(c=>{
+    const fc={};SHISAKU_MERGE_KEYS.forEach(k=>{if((c.excel[k]||null)!==(c.app[k]||null))fc[k]='excel';});
+    if(kpiSetsKey(c.excel)!==kpiSetsKey(c.app))fc.kpiSets='excel';
+    return Object.assign({choice:'excel',fieldChoice:fc,keepOriginal:'app'},c);
+  });
   document.getElementById('cfCount').textContent=PENDING_CONFLICTS.length;
   renderConflictList();
   document.getElementById('conflictModal').dataset.doneMsg=onDoneMsg||'';
   document.getElementById('conflictModal').classList.add('on');
 }
+function cfFieldLabel(k){const m={daibunrui:'大分類',mokuteki:'課題・目的',kanren:'関連No',method:'手法',cat:'種類',columnNo:'コラムNo',mailNo:'メルマガNo',wpNo:'WPNo',jireiCompany:'事例会社',naiyo:'施策内容',tanto:'担当',backlog:'Backlog',priority:'優先度',status:'状態',startDate:'着手日',release:'公開/実施日',check:'検証日',kpiSets:'KPIセット'};return m[k]||k;}
+function cfVal(rec,k){if(k==='kpiSets'){const n=(rec.kpiSets||[]).filter(x=>x.kpi||x.goal||x.actual).length;return n?(n+'組'):'—';}return rec[k]||'—';}
 function renderConflictList(){
   const wrap=document.getElementById('cfList');
   wrap.innerHTML=PENDING_CONFLICTS.map((c,idx)=>{
-    const diffRows=SHISAKU_MERGE_KEYS.filter(k=>(c.excel[k]||null)!==(c.app[k]||null)).map(k=>`<tr><td>${escHtml(k)}</td><td>${escHtml(c.excel[k]||'—')}</td><td>${escHtml(c.app[k]||'—')}</td></tr>`).join('');
+    const keys=Object.keys(c.fieldChoice);
+    const isMerge=c.choice==='merge';
+    const diffRows=keys.map(k=>{
+      const pick=isMerge?`<td><label style="margin-right:8px"><input type="radio" name="cff${idx}_${k}" ${c.fieldChoice[k]==='excel'?'checked':''} onchange="PENDING_CONFLICTS[${idx}].fieldChoice['${k}']='excel'">Excel</label><label><input type="radio" name="cff${idx}_${k}" ${c.fieldChoice[k]==='app'?'checked':''} onchange="PENDING_CONFLICTS[${idx}].fieldChoice['${k}']='app'">アプリ</label></td>`:'';
+      return `<tr><td>${escHtml(cfFieldLabel(k))}</td><td>${escHtml(cfVal(c.excel,k))}</td><td>${escHtml(cfVal(c.app,k))}</td>${pick}</tr>`;
+    }).join('');
+    const bothOpt=c.choice==='both'?`<div class="chk-row" style="margin-top:6px;font-size:12px">元のNo.（${escHtml(String(c.no))}）を残す側：
+        <label><input type="radio" name="cfk${idx}" ${c.keepOriginal==='app'?'checked':''} onchange="PENDING_CONFLICTS[${idx}].keepOriginal='app'">アプリ側（取込側へ新No.）</label>
+        <label><input type="radio" name="cfk${idx}" ${c.keepOriginal==='excel'?'checked':''} onchange="PENDING_CONFLICTS[${idx}].keepOriginal='excel'">Excel側（アプリ側へ新No.）</label></div>`:'';
     return `<div class="card card-pad" style="margin-bottom:10px">
       <div style="font-weight:700;margin-bottom:6px">${escHtml(c.biz)} No.${escHtml(c.no)}</div>
-      <div class="tbl-wrap" style="max-height:160px"><table><thead><tr><th>項目</th><th>Excel側</th><th>アプリ側</th></tr></thead><tbody>${diffRows||'<tr><td colspan=3 class="empty">差分なし</td></tr>'}</tbody></table></div>
-      <div class="chk-row" style="margin-top:8px">
-        <label><input type="radio" name="cf${idx}" ${c.choice==='excel'?'checked':''} onchange="PENDING_CONFLICTS[${idx}].choice='excel'"> Excel版を採用</label>
-        <label><input type="radio" name="cf${idx}" ${c.choice==='app'?'checked':''} onchange="PENDING_CONFLICTS[${idx}].choice='app'"> アプリ版を採用</label>
+      <div class="chk-row" style="margin-bottom:6px">
+        <label><input type="radio" name="cf${idx}" ${c.choice==='excel'?'checked':''} onchange="PENDING_CONFLICTS[${idx}].choice='excel';renderConflictList()"> Excel版を採用</label>
+        <label><input type="radio" name="cf${idx}" ${c.choice==='app'?'checked':''} onchange="PENDING_CONFLICTS[${idx}].choice='app';renderConflictList()"> アプリ版を採用</label>
+        <label><input type="radio" name="cf${idx}" ${c.choice==='merge'?'checked':''} onchange="PENDING_CONFLICTS[${idx}].choice='merge';renderConflictList()"> 項目ごとにマージ</label>
+        <label><input type="radio" name="cf${idx}" ${c.choice==='both'?'checked':''} onchange="PENDING_CONFLICTS[${idx}].choice='both';renderConflictList()"> 別施策として両方残す</label>
       </div>
+      ${c.choice==='both'?'<div class="section-note" style="font-size:11px">No.がたまたま重複した別施策として両方を残します（片方へ新しい連番No.を採番）。</div>':''}
+      <div class="tbl-wrap" style="max-height:180px"><table><thead><tr><th>項目</th><th>Excel側</th><th>アプリ側</th>${isMerge?'<th>採用</th>':''}</tr></thead><tbody>${diffRows||('<tr><td colspan="'+(isMerge?4:3)+'" class="empty">差分なし</td></tr>')}</tbody></table></div>
+      ${bothOpt}
     </div>`;
   }).join('');
 }
 function applyConflictResolutions(){
+  const now=new Date().toISOString();
   PENDING_CONFLICTS.forEach(c=>{
     const arr=DATA.shisaku[c.biz]||[];
     const idx=arr.findIndex(x=>String(x.no)===String(c.no));
     if(idx<0)return;
-    if(c.choice==='excel')arr[idx]=Object.assign({},c.excel,{source:'excel'});
-    else arr[idx]=Object.assign({},c.app,{updatedAt:new Date().toISOString()});
+    if(c.choice==='excel'){arr[idx]=Object.assign({},c.excel,{source:'excel'});}
+    else if(c.choice==='app'){arr[idx]=Object.assign({},c.app,{updatedAt:now});}
+    else if(c.choice==='merge'){
+      const merged=Object.assign({},c.app);
+      SHISAKU_MERGE_KEYS.forEach(k=>{if(c.fieldChoice[k])merged[k]=(c.fieldChoice[k]==='excel')?c.excel[k]:c.app[k];});
+      if(c.fieldChoice.kpiSets)merged.kpiSets=(c.fieldChoice.kpiSets==='excel')?c.excel.kpiSets:c.app.kpiSets;
+      merged.updatedAt=now;arr[idx]=merged;
+    }
+    else if(c.choice==='both'){
+      const newNo=nextShisakuNo(c.biz);
+      if(c.keepOriginal==='excel'){arr[idx]=Object.assign({},c.excel,{source:'excel'});arr.push(Object.assign({},c.app,{no:newNo,updatedAt:now}));}
+      else{arr[idx]=Object.assign({},c.app,{updatedAt:now});arr.push(Object.assign({},c.excel,{no:newNo,source:'excel',updatedAt:now}));}
+    }
   });
   const msg=document.getElementById('conflictModal').dataset.doneMsg||'';
   PENDING_CONFLICTS=[];
@@ -1209,8 +1260,9 @@ document.getElementById('fShisaku').addEventListener('change',function(e){const 
         if(g.actExtraIdx!=null){const extra=clean(r[g.actExtraIdx]);if(extra)actual=actual?(actual+' / '+extra):extra;}
         return{kpi:g.kpiIdx!=null?clean(r[g.kpiIdx]):null,goal:g.goalIdx!=null?clean(r[g.goalIdx]):null,actual};
       }).filter(k=>k.kpi||k.goal||k.actual);
+      const rno=clean(r[0])||nextShisakuNo(sn);
       recs.push({
-        no:clean(r[0]),daibunrui:clean(r[1]),mokuteki:mok,kanren:clean(r[3]),method:clean(r[4]),cat:clean(r[5]),
+        no:rno,daibunrui:clean(r[1]),mokuteki:mok,kanren:clean(r[3]),method:clean(r[4]),cat:clean(r[5]),
         columnNo:clean(r[6]),mailNo:clean(r[7]),wpNo:clean(r[8]),jireiCompany:clean(r[9]),naiyo,tanto:clean(r[11]),
         backlog:clean(r[12]),priority:clean(r[13]),status:clean(r[14]),startDate:dstr(r[15]),release:dstr(r[16]),check:dstr(r[17]),
         kpiSets,kpi:kpiSets[0]?kpiSets[0].kpi:null,goal:kpiSets[0]?kpiSets[0].goal:null,actual:kpiSets[0]?kpiSets[0].actual:null,
