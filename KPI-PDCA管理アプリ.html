@@ -184,7 +184,7 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
   <!-- SHISAKU KPI -->
   <div id="view-shisakuKpi" class="hidden">
     <div class="section-note" id="skNote"></div>
-    <div style="margin:8px 0"><button class="btn btn-ghost btn-sm" onclick="openSkCardToggle()">🃏 表示カード設定（事業部別）</button><div id="skCardPanel" class="hidden" style="margin-top:6px;border:1px solid var(--border);border-radius:8px;padding:8px;background:#fff"></div></div>
+    <div style="margin:8px 0"><button class="btn btn-ghost btn-sm" onclick="openSkCardToggle()">🃏 表示カード設定（事業部別）</button> <button class="btn btn-ghost btn-sm" onclick="openCatMaster()">🏷 種類マスタ編集</button><div id="skCardPanel" class="hidden" style="margin-top:6px;border:1px solid var(--border);border-radius:8px;padding:8px;background:#fff"></div><div id="catMasterPanel" class="hidden" style="margin-top:6px;border:1px solid var(--border);border-radius:8px;padding:8px;background:#fff"></div></div>
     <div class="sk-grid" id="skGrid"></div>
     <div class="card card-pad" style="margin-top:16px">
       <div class="sec-title">📄 施策別KPI 明細（実施本数 × 成果CV寄与）</div>
@@ -588,6 +588,22 @@ function openSkCardToggle(keepOpen){const p=document.getElementById('skCardPanel
   const biz=ST.biz;const cats=skCats();
   p.innerHTML='<div style="font-size:11px;margin-bottom:6px"><b>'+escHtml(biz)+'</b> で表示するカード（全員共通・JSON保存）　<span class="muted">チェックを外すと非表示</span></div><div class="chk-row">'+cats.map(cat=>`<label><input type="checkbox" ${skCardVisible(biz,cat)?'checked':''} onchange="toggleSkCard('${biz}','${String(cat).replace(/'/g,"\\'")}',this.checked)">${escHtml(cat)}</label>`).join('')+'</div>';
 }
+/* 施策種類マスタの編集：改名は全画面へ伝播、使用中の削除は確認 */
+function catInUse(cat){for(const b of BIZ4){if((DATA.shisaku[b]||[]).some(s=>s.cat===cat&&!s.deleteFlag))return true;const o=DATA.shisakuKpi[b];if(o&&o[cat]){const r=o[cat];if((r.targetAnnual!=null&&r.targetAnnual!==0)||Object.values(r.monthly||{}).some(v=>v))return true;}}return false;}
+function renameShisakuCat(oldC,newC){oldC=String(oldC);newC=String(newC||'').trim();if(!newC||newC===oldC){renderCatMaster();return;}ensureShisakuMasters();
+  DATA.shisakuMasters.cat=[...new Set((DATA.shisakuMasters.cat||[]).map(c=>c===oldC?newC:c))];
+  if(Array.isArray(DATA.shisakuCats))DATA.shisakuCats=[...new Set(DATA.shisakuCats.map(c=>c===oldC?newC:c))];
+  for(const b of BIZ4)(DATA.shisaku[b]||[]).forEach(s=>{if(s.cat===oldC)s.cat=newC;});
+  for(const b of BIZ4){const o=DATA.shisakuKpi[b];if(o&&o[oldC]){if(o[newC]){const a=o[newC],x=o[oldC];a.monthly=a.monthly||{};for(const m in (x.monthly||{}))a.monthly[m]=(a.monthly[m]||0)+(x.monthly[m]||0);if(a.targetAnnual==null)a.targetAnnual=x.targetAnnual;}else o[newC]=o[oldC];delete o[oldC];}}
+  if(DATA.skCardVisible)for(const b in DATA.skCardVisible){const m=DATA.skCardVisible[b];if(m&&m[oldC]!==undefined){m[newC]=m[oldC];delete m[oldC];}}
+  (DATA.pdca||[]).forEach(p=>{if(p.cat===oldC)p.cat=newC;});
+  markUnsaved();renderAll();renderCatMaster();}
+function addShisakuCat(){const el=document.getElementById('catMasterNew');const v=(el&&el.value||'').trim();if(!v)return;mergeMasterList('cat',[v]);markUnsaved();renderAll();renderCatMaster();}
+function deleteShisakuCat(cat){const used=catInUse(cat);if(!confirm(used?('「'+cat+'」は施策または本数で使用中です。マスタ候補から削除しますか？（既存データ自体は残ります）'):('「'+cat+'」をマスタから削除しますか？')))return;ensureShisakuMasters();DATA.shisakuMasters.cat=(DATA.shisakuMasters.cat||[]).filter(c=>c!==cat);if(Array.isArray(DATA.shisakuCats))DATA.shisakuCats=DATA.shisakuCats.filter(c=>c!==cat);markUnsaved();renderAll();renderCatMaster();}
+function openCatMaster(){const p=document.getElementById('catMasterPanel');if(!p)return;p.classList.toggle('hidden');if(!p.classList.contains('hidden'))renderCatMaster();}
+function renderCatMaster(){const p=document.getElementById('catMasterPanel');if(!p||p.classList.contains('hidden'))return;const cats=allShisakuCats(null);
+  const rows=cats.map(c=>`<tr><td><input value="${escHtml(c)}" onchange="renameShisakuCat('${String(c).replace(/'/g,"\\'")}',this.value)" style="width:150px"></td><td>${catInUse(c)?'<span class="pill pill-prog">使用中</span>':'<span class="muted" style="font-size:11px">未使用</span>'}</td><td><button class="btn btn-danger btn-sm" onclick="deleteShisakuCat('${String(c).replace(/'/g,"\\'")}')">削除</button></td></tr>`).join('');
+  p.innerHTML='<div style="font-size:11px;margin-bottom:6px"><b>施策種類マスタ</b>（種類名を書き換えると全画面へ伝播／使用中の削除は確認）</div><div class="tbl-wrap" style="max-height:240px"><table><thead><tr><th>種類名</th><th>状態</th><th></th></tr></thead><tbody>'+(rows||'<tr><td colspan="3" class="empty">なし</td></tr>')+'</tbody></table></div><div style="margin-top:6px">＋ <input id="catMasterNew" placeholder="新しい種類名" style="width:150px"> <button class="btn btn-ghost btn-sm" onclick="addShisakuCat()">追加</button></div>';}
 function renderShisakuKpi(){
   const mm=selMonths();
   document.getElementById('skNote').innerHTML=`対象：<b>${ST.biz==='ALL'?'全社':ST.biz}</b> ／ 期間：<b>${mm[0]}〜${mm[mm.length-1]}</b>　実施本数＝本数管理。成果は<b>施策ごとに指標を切替</b>（対応表）：コラム/事例/LP=対象ページのセッション(KPIツリー)、メルマガ/広告/WP=流入元別CV(実績ファイル)。<span class="muted">※目標本数が空欄の施策は参考値を仮設定—データ管理で調整可。</span>`;
@@ -1365,41 +1381,33 @@ async function chooseBackupFolder(){
 }
 async function clearBackupFolder(){await idbDel(BACKUP_IDB_KEY);toast('バックアップ設定を解除しました');refreshBackupStatus();}
 function backupFileName(d){const p=n=>String(n).padStart(2,'0');return `kpi_pdca_backup_${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.json`;}
+async function getRollingDir(h){
+  // 選択フォルダ配下の backup/rolling/ に保存（無ければ作成）。失敗時は選択フォルダ直下にフォールバック
+  try{const b=await h.getDirectoryHandle('backup',{create:true});return await b.getDirectoryHandle('rolling',{create:true});}catch(e){return h;}
+}
 async function writeBackupSnapshot(jsonStr){
   const h=await getBackupDirHandle(true);
   if(!h)return {ok:false,reason:backupApiSupported()?'未設定':'非対応ブラウザ'};
   try{
+    const dir=await getRollingDir(h);
     const now=new Date();
-    const fh=await h.getFileHandle(backupFileName(now),{create:true});
+    const fh=await dir.getFileHandle(backupFileName(now),{create:true});
     const w=await fh.createWritable();
     await w.write(jsonStr);await w.close();
-    const pruned=await pruneBackups(h);
+    const pruned=await pruneBackups(dir);
     return {ok:true,pruned};
   }catch(e){return {ok:false,reason:e.message};}
 }
 function parseBackupName(name){const m=name.match(/^kpi_pdca_backup_(\d{4}-\d{2}-\d{2})_(\d{6})\.json$/);if(!m)return null;return{name,date:m[1],time:m[2]};}
 async function pruneBackups(dirHandle){
+  // rolling プール：最新 rollingKeep 世代（既定30）だけ残す
   const files=[];
   for await (const [name,entry] of dirHandle.entries()){if(entry.kind==='file'){const p=parseBackupName(name);if(p)files.push(p);}}
   if(!files.length)return 0;
-  const byDate=new Map();
-  files.forEach(f=>{const arr=byDate.get(f.date)||[];arr.push(f);byDate.set(f.date,arr);});
-  const dates=[...byDate.keys()].sort().reverse(); // 新しい日付順
-  const keepDaily=new Set(dates.slice(0,30));
-  const older=dates.slice(30);
-  const monthFirst=new Map(); // YYYY-MM -> 最初に見つかった(最も古い)日付
-  older.slice().reverse().forEach(d=>{const ym=d.slice(0,7);if(!monthFirst.has(ym))monthFirst.set(ym,d);});
-  const keepMonthly=new Set(monthFirst.values());
+  files.sort((a,b)=>((a.date+a.time)<(b.date+b.time)?1:-1)); // 新しい順
+  const keep=(DATA.backupConfig&&DATA.backupConfig.rollingKeep)||30;
   let deleted=0;
-  for(const [date,arr] of byDate.entries()){
-    const isDailyKeep=keepDaily.has(date);
-    const isMonthlyKeep=keepMonthly.has(date);
-    arr.sort((a,b)=>a.time<b.time?1:-1); // 同日内は最新のみ残す
-    for(let i=0;i<arr.length;i++){
-      const keepThisFile=(i===0)&&(isDailyKeep||isMonthlyKeep);
-      if(!keepThisFile){try{await dirHandle.removeEntry(arr[i].name);deleted++;}catch(e){}}
-    }
-  }
+  for(let i=keep;i<files.length;i++){try{await dirHandle.removeEntry(files[i].name);deleted++;}catch(e){}}
   return deleted;
 }
 async function runManualBackup(){
