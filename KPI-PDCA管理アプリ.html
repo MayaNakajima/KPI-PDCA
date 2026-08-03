@@ -387,10 +387,10 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
 <div class="modal-bg" id="backupModal"><div class="modal" style="width:600px">
   <div class="modal-hd"><span>バックアップ設定</span><span style="cursor:pointer" onclick="closeBackupModal()">✕</span></div>
   <div class="modal-bd">
-    <div class="section-note">「保存(JSON)」を押すたびに、指定フォルダへ日時付きスナップショットを自動保存します。Box同期フォルダを指定すれば、そのままBoxへも同期されます。<br><b>保持ルール：</b>直近30日分は日次で保持、それより古い分は月初（月内で最初に保存された日）のみ残し、それ以外は自動削除します。</div>
+    <div class="section-note">ここで<b>アプリHTMLのあるフォルダ（施策管理表｜PDCA管理）</b>を選ぶと、「保存(JSON)」のたびに<br>・<b>data/kpi_pdca_data.json</b>＝最新の正データを上書き保存（既定の保存先）<br>・<b>backup/rolling/</b>＝日時付きスナップショット（最新30世代、`backupConfig.rollingKeep`）<br>を自動作成・保存します。Box同期フォルダを指定すれば、そのままBoxへ同期されます。</div>
     <div class="info-box" id="backupStatus" style="margin-bottom:10px">未設定</div>
     <div class="chk-row">
-      <button class="btn btn-primary btn-sm" onclick="chooseBackupFolder()">バックアップ先フォルダを選択</button>
+      <button class="btn btn-primary btn-sm" onclick="chooseBackupFolder()">保存先フォルダを選択（HTMLと同じ場所）</button>
       <button class="btn btn-ghost btn-sm" onclick="runManualBackup()">今すぐバックアップ</button>
       <button class="btn btn-danger btn-sm" onclick="clearBackupFolder()">設定解除</button>
     </div>
@@ -1341,16 +1341,30 @@ document.getElementById('fJson').addEventListener('change',function(e){const f=e
 /* ROIダッシュボードJSON(actuals: sessions/cv/mql_by_channel...) を本アプリ形式(session/mql/...)へ変換 */
 function roiToAppActuals(roiAct){const out={};for(const b in roiAct){out[b]={};for(const m in roiAct[b]){const r=roiAct[b][m]||{};const mbc=r.mql_by_channel||{};let mql=0,has=false;for(const k in mbc){mql+=(mbc[k]||0);has=true;}out[b][m]={session:(r.sessions!=null?r.sessions:0),cv:(r.cv!=null?r.cv:0),mql:(has?mql:(r.cv!=null?r.cv:0)),sal:(r.sal!=null?r.sal:0),sql:(r.sql!=null?r.sql:0),jucyu:(r.jucyu!=null?r.jucyu:0),cost:((r.cost_items||[]).reduce((a,x)=>a+(x||0),0)),content:(r.content_count!=null?r.content_count:0)};}}return out;}
 /* ===== EXPORT ===== */
-function exportJSON(){
+async function exportJSON(){
   DATA.savedAt=new Date().toISOString();
   const jsonStr=JSON.stringify(DATA);
-  const blob=new Blob([jsonStr],{type:'application/json'});
-  dl(blob,`kpi_pdca_data_${new Date().toISOString().slice(0,10)}.json`);
+  // 既定の保存先＝選択フォルダ配下の data/kpi_pdca_data.json（最新の正データを上書き）
+  let savedToData=false;
+  const h=await getBackupDirHandle(true);
+  if(h){
+    try{
+      const dir=await getDataDir(h);
+      const fh=await dir.getFileHandle('kpi_pdca_data.json',{create:true});
+      const w=await fh.createWritable();await w.write(jsonStr);await w.close();
+      savedToData=true;
+    }catch(e){/* 失敗時はダウンロードにフォールバック */}
+  }
+  if(!savedToData){
+    const blob=new Blob([jsonStr],{type:'application/json'});
+    dl(blob,`kpi_pdca_data_${new Date().toISOString().slice(0,10)}.json`);
+  }
   document.getElementById('unsavedDot').classList.remove('on');
-  writeBackupSnapshot(jsonStr).then(r=>{
-    if(r&&r.ok)toast('JSON保存。バックアップ先にも自動保存しました（'+r.pruned+'件整理）');
-    else toast('JSON保存。BOXの共有ファイルを更新してください'+(r&&r.reason?'（自動バックアップ:'+r.reason+'）':''));
-  });
+  // 世代スナップショット（backup/rolling）
+  const r=await writeBackupSnapshot(jsonStr);
+  if(savedToData)toast('data/ に正データを保存しました'+(r&&r.ok?('／backup '+r.pruned+'件整理'):''));
+  else if(backupApiSupported())toast('JSON保存（ダウンロード）。「🗄バックアップ設定」で保存先フォルダを選ぶと data/ に自動保存されます');
+  else toast('JSON保存（ダウンロード）。data/ への自動保存はChrome／Edgeでご利用ください');
 }
 /* ===== F5: 更新時バックアップ（保存のたびに指定フォルダへ日時付きスナップショット＋世代管理） ===== */
 const BACKUP_IDB_NAME='kpiPdcaBackupCfg',BACKUP_IDB_STORE='kv',BACKUP_IDB_KEY='backupDirHandle';
@@ -1384,6 +1398,10 @@ function backupFileName(d){const p=n=>String(n).padStart(2,'0');return `kpi_pdca
 async function getRollingDir(h){
   // 選択フォルダ配下の backup/rolling/ に保存（無ければ作成）。失敗時は選択フォルダ直下にフォールバック
   try{const b=await h.getDirectoryHandle('backup',{create:true});return await b.getDirectoryHandle('rolling',{create:true});}catch(e){return h;}
+}
+async function getDataDir(h){
+  // 選択フォルダ配下の data/ に保存（無ければ作成）。失敗時は選択フォルダ直下にフォールバック
+  try{return await h.getDirectoryHandle('data',{create:true});}catch(e){return h;}
 }
 async function writeBackupSnapshot(jsonStr){
   const h=await getBackupDirHandle(true);
