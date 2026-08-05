@@ -1475,12 +1475,33 @@ function updPerson(i,f,v){ensureNotifyConfig();const p=DATA.people[i];if(!p)retu
 function delPerson(i){ensureNotifyConfig();DATA.people.splice(i,1);markUnsaved();renderNotifyModal();}
 function distinctTanto(){const s=new Set();for(const b of BIZ4)(DATA.shisaku[b]||[]).forEach(x=>{if(x.tanto&&!x.deleteFlag)s.add(x.tanto);});return [...s].sort((a,b)=>String(a).localeCompare(String(b),'ja'));}
 const TANTO_NONE='__NONE__';
-function setTantoMap(t,pid){ensureNotifyConfig();if(pid)DATA.tantoMap[t]=pid;else delete DATA.tantoMap[t];markUnsaved();renderNotifyModal();}
+/* tantoMap値の正規化：文字列(旧・単一)／配列(複数)／TANTO_NONE(不要)に対応 */
+function tantoVal(t){const v=DATA.tantoMap[t];if(v==null||v==='')return{none:false,ids:[]};if(v===TANTO_NONE)return{none:true,ids:[]};if(Array.isArray(v))return{none:false,ids:v.filter(x=>x&&x!==TANTO_NONE)};return{none:false,ids:[v]};}
+function setTantoNone(t){ensureNotifyConfig();DATA.tantoMap[t]=TANTO_NONE;markUnsaved();renderNotifyModal();}
+function clearTanto(t){ensureNotifyConfig();delete DATA.tantoMap[t];markUnsaved();renderNotifyModal();}
+function addTantoRecipient(t,pid){ensureNotifyConfig();const cur=tantoVal(t).ids;if(!cur.includes(pid))cur.push(pid);DATA.tantoMap[t]=cur;markUnsaved();renderNotifyModal();}
+function removeTantoRecipient(t,pid){ensureNotifyConfig();const cur=tantoVal(t).ids.filter(x=>x!==pid);if(cur.length)DATA.tantoMap[t]=cur;else delete DATA.tantoMap[t];markUnsaved();renderNotifyModal();}
+function onTantoAdd(t,sel){const v=sel.value;sel.value='';if(!v)return;if(v===TANTO_NONE)setTantoNone(t);else addTantoRecipient(t,v);}
 function toggleAllTantoChk(v){document.querySelectorAll('.ncTantoChk').forEach(c=>{c.checked=v;});}
-function applyBulkTanto(){const sel=document.getElementById('ncBulkTantoSel');const pid=sel?sel.value:'';const chks=[...document.querySelectorAll('.ncTantoChk:checked')];if(!chks.length){toast('担当を選択してください');return;}chks.forEach(c=>{if(pid)DATA.tantoMap[c.value]=pid;else delete DATA.tantoMap[c.value];});markUnsaved();renderNotifyModal();toast(chks.length+'件の担当に設定しました');}
+function applyBulkTanto(){const sel=document.getElementById('ncBulkTantoSel');const pid=sel?sel.value:'';const chks=[...document.querySelectorAll('.ncTantoChk:checked')];if(!chks.length){toast('担当を選択してください');return;}
+  chks.forEach(c=>{const t=c.value;if(pid===TANTO_NONE)DATA.tantoMap[t]=TANTO_NONE;else if(!pid)delete DATA.tantoMap[t];else{const cur=tantoVal(t).ids;if(!cur.includes(pid))cur.push(pid);DATA.tantoMap[t]=cur;}});
+  markUnsaved();renderNotifyModal();toast(chks.length+'件の担当に適用しました');}
 function setChannel(b,v){ensureNotifyConfig();DATA.channels[b]=v.trim();markUnsaved();}
 function addHoliday(){ensureNotifyConfig();const el=document.getElementById('ncHolidayInput');const v=(el&&el.value||'').trim();if(!v)return;if(!DATA.holidays.companyDays.includes(v))DATA.holidays.companyDays.push(v);DATA.holidays.companyDays.sort();markUnsaved();renderNotifyModal();}
+function ncFmtDateISO(d){const y=d.getFullYear();const m=String(d.getMonth()+1).padStart(2,'0');const dd=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+dd;}
+function addHolidayRange(){ensureNotifyConfig();const f=document.getElementById('ncHolFrom'),t=document.getElementById('ncHolTo');const fv=(f&&f.value||'').trim(),tv=(t&&t.value||'').trim();if(!fv||!tv){toast('開始日と終了日を指定してください');return;}
+  let s=new Date(fv+'T00:00:00'),e=new Date(tv+'T00:00:00');if(isNaN(s.getTime())||isNaN(e.getTime())){toast('日付が不正です');return;}
+  if(s>e){const tmp=s;s=e;e=tmp;}
+  if(Math.round((e-s)/86400000)>366){toast('期間が長すぎます（最大約1年）');return;}
+  const set=new Set(DATA.holidays.companyDays||[]);const before=set.size;const skipWeekend=!!(document.getElementById('ncHolSkipWknd')||{}).checked;
+  for(let d=new Date(s);d<=e;d.setDate(d.getDate()+1)){if(skipWeekend){const w=d.getDay();if(w===0||w===6)continue;}set.add(ncFmtDateISO(d));}
+  DATA.holidays.companyDays=[...set].sort();markUnsaved();renderNotifyModal();toast((set.size-before)+'日を追加しました');}
+function addHolidayBulkText(){ensureNotifyConfig();const el=document.getElementById('ncHolBulkText');const raw=(el&&el.value||'');if(!raw.trim()){toast('日付を入力してください');return;}
+  const set=new Set(DATA.holidays.companyDays||[]);const before=set.size;let bad=0;
+  raw.split(/[\s,、，]+/).map(x=>x.trim()).filter(Boolean).forEach(tok=>{const m=tok.match(/^(\d{4})\D(\d{1,2})\D(\d{1,2})$/);if(!m){bad++;return;}const iso=m[1]+'-'+String(+m[2]).padStart(2,'0')+'-'+String(+m[3]).padStart(2,'0');const d=new Date(iso+'T00:00:00');if(isNaN(d.getTime())){bad++;return;}set.add(iso);});
+  DATA.holidays.companyDays=[...set].sort();markUnsaved();renderNotifyModal();toast((set.size-before)+'日を追加しました'+(bad?'（'+bad+'件は形式エラーで無視）':''));}
 function delHoliday(i){ensureNotifyConfig();DATA.holidays.companyDays.splice(i,1);markUnsaved();renderNotifyModal();}
+function clearHolidays(){ensureNotifyConfig();if(!(DATA.holidays.companyDays||[]).length)return;if(!confirm('会社休業日をすべて削除しますか？'))return;DATA.holidays.companyDays=[];markUnsaved();renderNotifyModal();}
 function setJPHoliday(v){ensureNotifyConfig();DATA.holidays.useJPNationalHolidays=!!v;markUnsaved();}
 function setNotifyEnabled(v){ensureNotifyConfig();DATA.notifyConfig.enabled=!!v;markUnsaved();}
 function setTypeEnabled(t,v){ensureNotifyConfig();DATA.notifyConfig[t].enabled=!!v;markUnsaved();}
@@ -1497,13 +1518,17 @@ function notifyTargets(biz){ensureNotifyConfig();const tg=DATA.notifyConfig.trig
     if(hits.length)out.push({biz:b,no:s.no,naiyo:s.naiyo,tanto:s.tanto,check:s.check,release:s.release,triggers:hits});
   }));return out;}
 function personById(id){return (DATA.people||[]).find(p=>p.id===id);}
-function resolveRecipients(tanto){ensureNotifyConfig();const out={to:[],warn:null};const pid=DATA.tantoMap[tanto];
-  if(pid===TANTO_NONE)return out;
-  const person=pid?personById(pid):null;
-  if(!person){out.warn='宛先未設定：'+(tanto||'(担当なし)');return out;}
-  const mgr=person.managerId?personById(person.managerId):null;
-  if(person.external){if(mgr)out.to.push(mgr);else out.warn='社外担当の振替先未設定：'+(person.name||person.upn);}
-  else{out.to.push(person);if(mgr)out.to.push(mgr);}
+function resolveRecipients(tanto){ensureNotifyConfig();const out={to:[],warn:null};const v=tantoVal(tanto);
+  if(v.none)return out;
+  if(!v.ids.length){out.warn='宛先未設定：'+(tanto||'(担当なし)');return out;}
+  const seen=new Set();const warns=[];
+  v.ids.forEach(pid=>{const person=personById(pid);
+    if(!person){warns.push('宛先未設定：'+(tanto||'(担当なし)'));return;}
+    const mgr=person.managerId?personById(person.managerId):null;
+    if(person.external){if(mgr){if(!seen.has(mgr.id)){seen.add(mgr.id);out.to.push(mgr);}}else warns.push('社外担当の振替先未設定：'+(person.name||person.upn));}
+    else{if(!seen.has(person.id)){seen.add(person.id);out.to.push(person);}if(mgr&&!seen.has(mgr.id)){seen.add(mgr.id);out.to.push(mgr);}}
+  });
+  if(warns.length)out.warn=[...new Set(warns)].join(' / ');
   return out;}
 function buildAdaptiveCard(type,biz){const title=type==='A'?'【KPI-PDCA通知】毎朝ダイジェスト':'【KPI-PDCA通知】週次サマリー';const tgs=notifyTargets(biz);
   const body=[{type:'TextBlock',size:'Large',weight:'Bolder',text:title},{type:'TextBlock',isSubtle:true,text:(biz==='ALL'?'全社':biz)+'／'+new Date().toLocaleDateString('ja-JP')}];
@@ -1525,10 +1550,19 @@ function renderNotifyModal(){ensureNotifyConfig();const nc=DATA.notifyConfig,bc=
   const opts=sel=>'<option value="">—</option>'+(DATA.people||[]).map(p=>`<option value="${p.id}" ${sel===p.id?'selected':''}>${escHtml(p.name||p.upn||p.id)}</option>`).join('');
   const optsTanto=sel=>'<option value="">—（宛先未設定）</option><option value="'+TANTO_NONE+'" '+(sel===TANTO_NONE?'selected':'')+'>不要（通知しない）</option>'+(DATA.people||[]).map(p=>`<option value="${p.id}" ${sel===p.id?'selected':''}>${escHtml(p.name||p.upn||p.id)}</option>`).join('');
   const peopleRows=(DATA.people||[]).map((p,i)=>`<tr><td><input value="${escHtml(p.name||'')}" onchange="updPerson(${i},'name',this.value)" style="width:90px"></td><td><input value="${escHtml(p.upn||'')}" onchange="updPerson(${i},'upn',this.value)" placeholder="mail@…" style="width:150px"></td><td style="text-align:center"><input type="checkbox" ${p.external?'checked':''} onchange="updPerson(${i},'external',this.checked)"></td><td><select onchange="updPerson(${i},'managerId',this.value)" style="width:110px">${opts(p.managerId)}</select></td><td><button class="btn btn-danger btn-sm" onclick="delPerson(${i})">削除</button></td></tr>`).join('');
-  const tantoRows=distinctTanto().map(t=>{const pid=DATA.tantoMap[t]||'';const st=pid?'':' style="background:#fff7ed"';return `<tr${st}><td style="text-align:center"><input type="checkbox" class="ncTantoChk" value="${escHtml(t)}"></td><td>${escHtml(t)}</td><td><select onchange="setTantoMap('${escHtml(t).replace(/'/g,"\\'")}',this.value)" style="width:170px">${optsTanto(pid)}</select></td></tr>`;}).join('');
+  const tantoRows=distinctTanto().map(t=>{const v=tantoVal(t);const unset=!v.none&&v.ids.length===0;const st=unset?' style="background:#fff7ed"':'';const te=escHtml(t).replace(/'/g,"\\'");
+    let cell;
+    if(v.none){cell=`<span class="pill pill-todo" style="margin:2px;display:inline-block">不要（通知しない） <span style="cursor:pointer" onclick="clearTanto('${te}')">✕</span></span>`;}
+    else{const pills=v.ids.map(pid=>{const p=personById(pid);const nm=p?(p.name||p.upn||p.id):('(不明:'+pid+')');return `<span class="pill pill-prog" style="margin:2px;display:inline-block">${escHtml(nm)} <span style="cursor:pointer" onclick="removeTantoRecipient('${te}','${pid}')">✕</span></span>`;}).join('');
+      const addOpts='<option value="">＋宛先を追加…</option>'+(v.ids.length?'':('<option value="'+TANTO_NONE+'">不要（通知しない）</option>'))+(DATA.people||[]).filter(p=>!v.ids.includes(p.id)).map(p=>`<option value="${p.id}">${escHtml(p.name||p.upn||p.id)}</option>`).join('');
+      cell=(pills||'<span class="muted" style="font-size:11px">宛先未設定</span>')+' <select onchange="onTantoAdd(\''+te+'\',this)" style="width:150px;margin-top:2px">'+addOpts+'</select>';}
+    return `<tr${st}><td style="text-align:center;vertical-align:top"><input type="checkbox" class="ncTantoChk" value="${escHtml(t)}"></td><td style="vertical-align:top">${escHtml(t)}</td><td>${cell}</td></tr>`;}).join('');
   const chanRows=BIZ4.map(b=>`<tr><td>${b}</td><td><input value="${escHtml(DATA.channels[b]||'')}" onchange="setChannel('${b}',this.value)" style="width:360px"></td></tr>`).join('');
   const holRows=(hd.companyDays||[]).map((d,i)=>`<span class="pill pill-todo" style="margin:2px;display:inline-block">${escHtml(d)} <span style="cursor:pointer" onclick="delHoliday(${i})">✕</span></span>`).join('')||'<span class="muted" style="font-size:12px">未登録</span>';
-  document.getElementById('notifyBody').innerHTML=`
+  const ncBody=document.getElementById('notifyBody');
+  const ncScrollTop=ncBody?ncBody.scrollTop:0;
+  const ncWrapTops=ncBody?[...ncBody.querySelectorAll('.tbl-wrap')].map(w=>w.scrollTop):[];
+  ncBody.innerHTML=`
    <div class="nc-sec"><b>① 通知ON/OFF・トリガー</b>
      <div class="chk-row" style="margin:2px 0 6px"><label><input type="checkbox" ${nc.enabled?'checked':''} onchange="setNotifyEnabled(this.checked)"> 通知全体を有効</label>
        <label><input type="checkbox" ${nc.typeA.enabled?'checked':''} onchange="setTypeEnabled('typeA',this.checked)"> A:毎朝</label><input type="time" value="${nc.typeA.time}" onchange="setTypeTime('typeA',this.value)">
@@ -1543,13 +1577,16 @@ function renderNotifyModal(){ensureNotifyConfig();const nc=DATA.notifyConfig,bc=
        <button class="btn btn-ghost btn-sm" onclick="applyBulkTanto()">選択した担当に適用</button>
      </div>
      <div class="tbl-wrap" style="max-height:170px"><table><thead><tr><th></th><th>担当(施策)</th><th>宛先</th></tr></thead><tbody>${tantoRows||'<tr><td colspan="3" class="empty">担当なし</td></tr>'}</tbody></table></div>
-     <div class="muted" style="font-size:11px;margin-top:4px">「不要」＝過去の施策・過去のベンダー等、通知の宛先設定が不要な担当に設定します（「宛先未設定」の警告対象から除外されます）。チェックで複数選択し、上のプルダウンで宛先（または「不要」）を選んで「選択した担当に適用」を押すと、まとめて設定できます。</div></div>
+     <div class="muted" style="font-size:11px;margin-top:4px">1担当に複数の宛先を設定できます（「＋宛先を追加…」で追加、各宛先の「✕」で削除）。「不要」＝過去の施策・過去のベンダー等、通知の宛先設定が不要な担当に設定します（「宛先未設定」の警告対象から除外されます）。チェックで複数選択し、上のプルダウンで宛先（または「不要」）を選んで「選択した担当に適用」を押すと、まとめて追加・設定できます。</div></div>
    <div class="nc-sec"><b>④ 事業チャネル（B通知の投稿先）</b>
      <div class="tbl-wrap" style="max-height:150px"><table><thead><tr><th>事業</th><th>channelId</th></tr></thead><tbody>${chanRows}</tbody></table></div></div>
    <div class="nc-sec"><b>⑤ 休日カレンダー</b>
      <div style="margin:2px 0"><label><input type="checkbox" ${hd.useJPNationalHolidays?'checked':''} onchange="setJPHoliday(this.checked)"> 日本の祝日を休日扱い</label></div>
-     <div>会社休業日：<input type="date" id="ncHolidayInput"> <button class="btn btn-ghost btn-sm" onclick="addHoliday()">追加</button></div>
-     <div style="margin-top:6px">${holRows}</div></div>
+     <div style="margin:2px 0">会社休業日：<input type="date" id="ncHolidayInput"> <button class="btn btn-ghost btn-sm" onclick="addHoliday()">追加</button></div>
+     <div style="margin:4px 0;font-size:12px">期間で一括追加：<input type="date" id="ncHolFrom"> 〜 <input type="date" id="ncHolTo"> <button class="btn btn-ghost btn-sm" onclick="addHolidayRange()">一括追加</button> <label style="margin-left:4px"><input type="checkbox" id="ncHolSkipWknd"> 土日を除く</label></div>
+     <div style="margin:4px 0;font-size:12px">まとめて貼付（改行/カンマ区切り・YYYY-MM-DD）：<br><textarea id="ncHolBulkText" rows="2" placeholder="2026-12-29, 2026-12-30&#10;2027-01-04" style="width:330px;vertical-align:top"></textarea> <button class="btn btn-ghost btn-sm" onclick="addHolidayBulkText()">まとめて追加</button></div>
+     <div style="margin-top:6px">${holRows}</div>
+     ${(hd.companyDays||[]).length?`<div style="margin-top:4px"><button class="btn btn-danger btn-sm" onclick="clearHolidays()">すべて削除</button></div>`:''}</div>
    <div class="nc-sec"><b>⑥ バックアップ世代</b>
      <div style="font-size:12px">更新+週次(rolling) <input type="number" value="${bc.rollingKeep}" onchange="setBackupKeep('rollingKeep',this.value)" style="width:56px"> 世代／月次(monthly) <input type="number" value="${bc.monthlyKeep}" onchange="setBackupKeep('monthlyKeep',this.value)" style="width:56px"> 世代<div class="muted" style="margin-top:4px">スケジュール：週次=月9:30／月次=1日9:30（祝日は翌営業日）。実行はPower Automate。</div></div></div>
    <div class="nc-sec"><b>⑦ 通知テスト・プレビュー</b>
@@ -1557,6 +1594,8 @@ function renderNotifyModal(){ensureNotifyConfig();const nc=DATA.notifyConfig,bc=
      <div class="chk-row"><button class="btn btn-ghost btn-sm" onclick="previewNotify('A')">A プレビュー</button><button class="btn btn-ghost btn-sm" onclick="previewNotify('B')">B プレビュー</button><button class="btn btn-primary btn-sm" onclick="testNotify('A')">A テスト送信</button><button class="btn btn-primary btn-sm" onclick="testNotify('B')">B テスト送信</button></div>
      <div id="ncPreview" style="margin-top:8px"></div>
      <div class="muted" style="font-size:11px;margin-top:6px">プレビューは現在選択中の事業（${ST.biz==='ALL'?'全社':ST.biz}）の対象施策で生成。設定は「保存(JSON)」で共有され、Power Automateが参照します。</div></div>`;
+  /* 再描画後もスクロール位置を維持 */
+  if(ncBody){ncBody.scrollTop=ncScrollTop;const nw=ncBody.querySelectorAll('.tbl-wrap');ncWrapTops.forEach((v,i)=>{if(nw[i])nw[i].scrollTop=v;});}
 }
 function dl(blob,name){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
 function openDlModal(){document.getElementById('dlBiz').innerHTML=BIZ4.map(b=>`<label><input type="checkbox" value="${b}" checked>${b}</label>`).join('');document.getElementById('dlContent').innerHTML=[['funnel','ファネルKPI'],['tree','KPIツリー(ﾁｬﾈﾙ/ﾍﾟｰｼﾞ)'],['shisakuKpi','施策別KPI'],['seika','成果CV寄与'],['pdca','PDCA記録'],['shisaku','施策一覧']].map(c=>`<label><input type="checkbox" value="${c[0]}" checked>${c[1]}</label>`).join('');const fr=document.getElementById('dlFrom'),to=document.getElementById('dlTo');fr.innerHTML=to.innerHTML='';FYM.forEach((m,i)=>{fr.innerHTML+=`<option value="${i}">${m}</option>`;to.innerHTML+=`<option value="${i}">${m}</option>`;});fr.value=ST.mFrom;to.value=ST.mTo;document.getElementById('dlModal').classList.add('on');}
