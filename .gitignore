@@ -17,3 +17,8 @@ backup/
 
 # Cowork/Claude local settings
 .claude/
+
+# 入力データ（2026-10〜 Box\【個人】612316_中島　麻耶\10_data に集約。リポジトリに置かない）
+source-data/
+*実績*.xlsm
+*実績*.xlsx
