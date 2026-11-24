@@ -133,6 +133,62 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
 .msel{position:relative;display:inline-block}
 .msel-panel{position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.15);padding:8px 10px;z-index:220;min-width:200px;max-height:260px;overflow:auto}
 .msel-panel label{display:flex;gap:6px;align-items:center;font-size:12px;padding:3px 0;cursor:pointer;white-space:nowrap}
+/* ===== 施策管理：Excel風シート ===== */
+body.sheet-wide .main{max-width:none}
+#view-shisaku.sm-sheet-mode .sm-nonsheet{display:none!important}
+.sh-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 6px}
+.sh-hint{font-size:11px;color:var(--muted)}
+.sh-area{display:flex;border:1px solid #c6c6c6;background:#fff;height:calc(100vh - 300px);min-height:420px}
+.sh-scroll{position:relative;overflow:auto;flex:1;min-width:0}
+table.sh{border-collapse:separate;border-spacing:0;table-layout:fixed;font-family:Meiryo,'メイリオ',sans-serif;font-size:11px;color:#000;user-select:none}
+table.sh td{border-right:1px solid #d9d9d9;border-bottom:1px solid #d9d9d9;height:20px;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#fff;cursor:cell;box-sizing:border-box}
+table.sh th{font-weight:normal;padding:0 3px;border-right:1px solid #bfbfbf;border-bottom:1px solid #bfbfbf;position:sticky;z-index:3;overflow:hidden;box-sizing:border-box}
+table.sh thead tr.sh-letters th{top:0;height:21px;background:#f0f0f0;color:#444;text-align:center;cursor:pointer}
+table.sh thead tr.sh-h1 th{top:21px;height:23px;text-align:center;font-weight:bold;color:#000;cursor:default}
+table.sh thead tr.sh-h2 th{top:44px;height:36px;white-space:normal;line-height:1.25;text-align:center;font-size:10.5px;vertical-align:middle;padding-right:16px;cursor:default}
+table.sh th.rn{left:0;background:#f0f0f0;color:#444;text-align:center;z-index:2;cursor:pointer;font-size:10.5px}
+table.sh thead th.rn{z-index:5}
+/* 文字サイズ S/M/L（行の高さは文字に合わせて最小限だけ変える＝一覧性を保つ） */
+#smSheetWrap.fs-s table.sh{font-size:10px}#smSheetWrap.fs-s table.sh td{height:18px}#smSheetWrap.fs-s table.sh thead tr.sh-h2 th{font-size:9.5px}#smSheetWrap.fs-s #shEd,#smSheetWrap.fs-s #shDd{font-size:10px}
+#smSheetWrap.fs-l table.sh{font-size:13px}#smSheetWrap.fs-l table.sh td{height:24px}#smSheetWrap.fs-l table.sh thead tr.sh-h2 th{font-size:12px;height:42px}#smSheetWrap.fs-l #shEd,#smSheetWrap.fs-l #shDd{font-size:13px}
+.sh-rs{position:absolute;top:0;right:0;width:6px;height:100%;cursor:col-resize;z-index:6}
+.sh-rs:hover,.sh-rs.on{background:rgba(33,115,70,.45)}
+.sh-fs{display:inline-flex;align-items:center;gap:0;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:#fff;font-size:11px}
+.sh-fs b{padding:0 6px;color:var(--muted);font-weight:600}
+.sh-fs span{padding:3px 9px;cursor:pointer;border-left:1px solid var(--border)}.sh-fs span.on{background:var(--navy);color:#fff}
+.sh-frz{font-size:11px;color:var(--muted);display:inline-flex;align-items:center;gap:4px}
+.sh-frz select{font-size:11px;padding:2px 4px}
+table.sh td.sel{background:#dce7f5}
+table.sh td.act{box-shadow:inset 0 0 0 2px #217346;background:#fff}
+table.sh th.hl{background:#d3d3d3!important;color:#217346;font-weight:bold}
+table.sh td.del{color:#999;text-decoration:line-through}
+table.sh a.sh-link{color:#1155cc;text-decoration:underline;cursor:pointer}
+.sh-so{font-size:9px;margin-left:2px}
+.sh-fbtn{position:absolute;right:2px;bottom:2px;width:13px;height:13px;line-height:11px;font-size:9px;background:#fff;color:#333;border:1px solid #888;border-radius:2px;cursor:pointer;text-align:center}
+.sh-fbtn.on{background:#217346;color:#fff;border-color:#217346}
+#shEd{position:absolute;left:-9999px;top:0;z-index:6;border:2px solid #217346;font:11px Meiryo,'メイリオ',sans-serif;padding:1px 3px;margin:0;resize:none;opacity:0;pointer-events:none;background:#fff;box-sizing:border-box;overflow:hidden;white-space:pre-wrap;outline:none;color:#000}
+#shEd.on{opacity:1;pointer-events:auto;box-shadow:0 2px 8px rgba(0,0,0,.25);overflow:auto}
+#shDdBtn{position:absolute;display:none;z-index:6;width:16px;background:#f3f3f3;border:1px solid #999;font-size:10px;text-align:center;cursor:pointer;box-sizing:border-box;line-height:18px}
+#shDd{position:absolute;display:none;z-index:7;background:#fff;border:1px solid #888;max-height:240px;overflow:auto;font:11px Meiryo,'メイリオ',sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.sh-dd-item{padding:3px 8px;cursor:pointer;white-space:nowrap}
+.sh-dd-item.hi,.sh-dd-item:hover{background:#dce7f5}
+#shFp{position:fixed;z-index:300;background:#fff;border:1px solid #999;box-shadow:0 6px 20px rgba(0,0,0,.25);width:250px;font-size:12px;padding:6px}
+#shFp .fp-it{padding:4px 6px;cursor:pointer;border-radius:3px}#shFp .fp-it:hover{background:#eef2f7}
+#shFp .fp-list{max-height:240px;overflow:auto;border:1px solid #ddd;padding:4px;margin:6px 0}
+#shFp .fp-list label{display:flex;gap:4px;align-items:center;white-space:nowrap;padding:1px 0}
+#shFp .fp-q{width:100%;box-sizing:border-box;padding:3px 5px;border:1px solid #bbb;border-radius:3px;margin-top:4px}
+#shFp .fp-ft{display:flex;gap:6px;justify-content:flex-end}
+.sh-tabs{display:flex;align-items:stretch;background:#f3f3f3;border:1px solid #c6c6c6;border-top:none;height:28px;font-size:12px}
+.sh-tab{padding:5px 18px;cursor:pointer;color:#333;border-right:1px solid #d0d0d0}
+.sh-tab.on{background:#fff;color:#217346;font-weight:bold;box-shadow:inset 0 -3px 0 #217346}
+.sh-status{margin-left:auto;padding:0 10px;align-self:center;color:#444;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#shPanel{width:390px;border-left:1px solid #c6c6c6;overflow:auto;background:#fafafa;padding:10px 12px;font-size:12px;flex-shrink:0;box-sizing:border-box}
+.sh-ptitle{font-weight:700;font-size:14px;color:var(--navy);display:flex;align-items:center;gap:6px}
+.sh-psec{font-weight:700;margin:12px 0 6px;padding:3px 6px;border-radius:4px;color:#000}
+.sh-pf{display:grid;grid-template-columns:118px 1fr;gap:4px 8px;align-items:start}
+.sh-pf>label{font-size:11px;color:var(--muted);padding-top:5px;word-break:break-all}
+.sh-pf input,.sh-pf textarea,.sh-pf select{width:100%;font-size:12px;padding:3px 5px;border:1px solid #cbd5e1;border-radius:4px;box-sizing:border-box;font-family:inherit}
+.sh-pdca{border:1px solid var(--border);border-radius:6px;padding:6px 8px;margin-bottom:6px;background:#fff;font-size:11px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -196,16 +252,17 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
   <div id="view-shisaku" class="hidden">
     <div class="toolbar">
       <input type="text" id="smSearch" placeholder="検索（No・内容・担当など）" style="width:220px" oninput="renderShisakuMgmt()">
-      <div class="msel" id="mselWrap-daibunrui"><button class="btn btn-ghost btn-sm" onclick="toggleMselPanel('daibunrui')"><span id="mselLabel-daibunrui">大分類：すべて</span> ▾</button><div class="msel-panel hidden" id="mselPanel-daibunrui"></div></div>
-      <div class="msel" id="mselWrap-cat"><button class="btn btn-ghost btn-sm" onclick="toggleMselPanel('cat')"><span id="mselLabel-cat">種類：すべて</span> ▾</button><div class="msel-panel hidden" id="mselPanel-cat"></div></div>
-      <div class="msel" id="mselWrap-status"><button class="btn btn-ghost btn-sm" onclick="toggleMselPanel('status')"><span id="mselLabel-status">状態：すべて</span> ▾</button><div class="msel-panel hidden" id="mselPanel-status"></div></div>
-      <div class="msel" id="mselWrap-tanto"><button class="btn btn-ghost btn-sm" onclick="toggleMselPanel('tanto')"><span id="mselLabel-tanto">担当：すべて</span> ▾</button><div class="msel-panel hidden" id="mselPanel-tanto"></div></div>
-      <button class="btn btn-ghost btn-sm" onclick="openColToggle()">列の表示切替</button>
+      <div class="msel sm-nonsheet" id="mselWrap-daibunrui"><button class="btn btn-ghost btn-sm" onclick="toggleMselPanel('daibunrui')"><span id="mselLabel-daibunrui">大分類：すべて</span> ▾</button><div class="msel-panel hidden" id="mselPanel-daibunrui"></div></div>
+      <div class="msel sm-nonsheet" id="mselWrap-cat"><button class="btn btn-ghost btn-sm" onclick="toggleMselPanel('cat')"><span id="mselLabel-cat">種類：すべて</span> ▾</button><div class="msel-panel hidden" id="mselPanel-cat"></div></div>
+      <div class="msel sm-nonsheet" id="mselWrap-status"><button class="btn btn-ghost btn-sm" onclick="toggleMselPanel('status')"><span id="mselLabel-status">状態：すべて</span> ▾</button><div class="msel-panel hidden" id="mselPanel-status"></div></div>
+      <div class="msel sm-nonsheet" id="mselWrap-tanto"><button class="btn btn-ghost btn-sm" onclick="toggleMselPanel('tanto')"><span id="mselLabel-tanto">担当：すべて</span> ▾</button><div class="msel-panel hidden" id="mselPanel-tanto"></div></div>
+      <button class="btn btn-ghost btn-sm sm-nonsheet" onclick="openColToggle()">列の表示切替</button>
       <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer"><input type="checkbox" id="smShowDeleted" onchange="renderShisakuMgmt()">削除候補を表示</label>
-      <button class="btn btn-green btn-sm" onclick="openSmEdit(curBiz(),null)">＋新規施策</button>
+      <button class="btn btn-green btn-sm sm-nonsheet" onclick="openSmEdit(curBiz(),null)">＋新規施策</button>
       <span class="org-bar-sp"></span>
       <div class="sub-tabs" id="viewShisakuSubTabs">
-        <div class="sub-tab active" data-sv="table" onclick="setShisakuSubView('table')">📋 一覧</div>
+        <div class="sub-tab active" data-sv="sheet" onclick="setShisakuSubView('sheet')">📗 シート</div>
+        <div class="sub-tab" data-sv="table" onclick="setShisakuSubView('table')">📋 一覧</div>
         <div class="sub-tab" data-sv="card" onclick="setShisakuSubView('card')">🗂 カード</div>
       </div>
     </div>
@@ -213,6 +270,22 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
     <div id="smColPanel" class="card card-pad hidden" style="margin-bottom:10px"></div>
     <div id="smTableWrap" class="tbl-wrap" style="max-height:640px"><table id="smTbl"></table></div>
     <div id="smCardWrap" class="sk-grid hidden"></div>
+    <div id="smSheetWrap" class="hidden">
+      <div class="sh-bar">
+        <button class="btn btn-green btn-sm" onclick="shAddRow()">＋行を追加</button>
+        <button class="btn btn-ghost btn-sm" id="shPanelBtn" onclick="shTogglePanel()">📄 詳細パネル</button>
+        <button class="btn btn-ghost btn-sm" onclick="shClearSort()">並べ替えを解除</button>
+        <button class="btn btn-ghost btn-sm" onclick="shClearFilters()">フィルタをすべて解除</button>
+        <span class="sh-fs" id="shFs"><b>文字サイズ</b><span data-fs="s" onclick="shSetFs('s')">S</span><span data-fs="m" onclick="shSetFs('m')">M</span><span data-fs="l" onclick="shSetFs('l')">L</span></span>
+        <label class="sh-frz">列の固定<select id="shFreeze" onchange="shSetFreeze(this.value)"><option value="0">なし</option><option value="1">A列（No）まで</option><option value="4">D列（P/A）まで</option><option value="6">F列（施策種類）まで</option><option value="11">K列（施策内容）まで</option></select></label>
+        <span class="sh-hint">セルを選んでそのまま入力／ダブルクリック・F2で編集／Excelとコピー＆貼り付け可／Ctrl+Zで元に戻す／見出しの ▾ で並べ替え・絞り込み／列記号の境目をドラッグで列幅（ダブルクリックで元の幅）／行番号クリックで詳細パネル</span>
+      </div>
+      <div class="sh-area">
+        <div class="sh-scroll" id="shScroll"><table class="sh" id="shTbl"></table><textarea id="shEd" spellcheck="false" autocomplete="off"></textarea><div id="shDdBtn" title="一覧から選ぶ（Alt+↓）">▾</div><div id="shDd"></div></div>
+        <div id="shPanel" style="display:none"></div>
+      </div>
+      <div class="sh-tabs" id="shTabs"></div>
+    </div>
   </div>
 
   <!-- PDCA BOARD -->
@@ -514,6 +587,7 @@ function initUI(){
   const tm=document.getElementById('trendMetric');tm.innerHTML='';FUNNEL.forEach(f=>tm.innerHTML+=`<option value="${f[0]}">${f[1]}</option>`);tm.value='mql';
 }
 function renderAll(){
+  document.body.classList.toggle('sheet-wide',ST.view==='shisaku'&&ST.smSub==='sheet');
   if(ST.view==='dash')renderDash();
   else if(ST.view==='shisakuKpi')renderShisakuKpi();
   else if(ST.view==='shisaku')renderShisakuMgmt();
@@ -702,7 +776,7 @@ const SM_DEFAULT_VISIBLE=new Set(SM_COLS.map(c=>c[0]));
 function loadSmPrefs(){try{return JSON.parse(localStorage.getItem('smPrefs_v1')||'null')||{};}catch(e){return {};}}
 function saveSmPrefs(){try{localStorage.setItem('smPrefs_v1',JSON.stringify({smSort:ST.smSort,smCols:ST.smCols}));}catch(e){}}
 function ensureSmState(){
-  if(!ST.smSub)ST.smSub='table';
+  if(!ST.smSub)ST.smSub='sheet';
   const pref=ST._smPrefLoaded?null:loadSmPrefs();
   if(!ST.smSort)ST.smSort=(pref&&Array.isArray(pref.smSort)&&pref.smSort.length)?pref.smSort:[{key:'no',dir:1}];
   if(!ST.smCols){ST.smCols={};SM_COLS.forEach(c=>ST.smCols[c[0]]=SM_DEFAULT_VISIBLE.has(c[0]));if(pref&&pref.smCols)SM_COLS.forEach(c=>{if(pref.smCols[c[0]]!==undefined)ST.smCols[c[0]]=!!pref.smCols[c[0]];});}
@@ -822,6 +896,18 @@ function openColToggle(){
 }
 function renderShisakuMgmt(){
   ensureSmState();
+  const sheetMode=ST.smSub==='sheet';
+  document.getElementById('view-shisaku').classList.toggle('sm-sheet-mode',sheetMode);
+  document.body.classList.toggle('sheet-wide',sheetMode&&ST.view==='shisaku');
+  document.getElementById('smSheetWrap').classList.toggle('hidden',!sheetMode);
+  if(sheetMode){
+    document.getElementById('smTableWrap').classList.add('hidden');
+    document.getElementById('smCardWrap').classList.add('hidden');
+    document.getElementById('smColPanel').classList.add('hidden');
+    document.getElementById('smNote').innerHTML='';
+    renderShisakuSheet();
+    return;
+  }
   populateSmFilters();
   const list=smList();
   document.getElementById('smNote').innerHTML=`対象：<b>${ST.biz==='ALL'?'全社':ST.biz}</b>／${list.length}件　<span class="muted">複数ソート：列見出しをShiftクリックで追加</span>`;
@@ -862,6 +948,473 @@ function openSmCard(biz,no){
   document.getElementById('smCardModal').classList.add('on');
 }
 function closeSmCard(){document.getElementById('smCardModal').classList.remove('on');}
+
+/* ===== 施策管理タブ F4: Excel風シート（施策管理表.xlsx と同じ列・見出し・列幅で表示し、その場で入力） ===== */
+/* 列定義：[列記号, 見出し(2行目), 項目, 種類]。種類 text/long/list/date/url。kN.xxx は KPIセットN（0始まり）の項目 */
+const SH_BASE=[
+ ['A','No','no','text'],['B','大分類','daibunrui','list'],['C','課題・施策目的','mokuteki','long'],['D','関連施策\nNo.','kanren','text'],
+ ['E','手法','method','list'],['F','施策種類','cat','list'],['G','コラム\nNo.','columnNo','text'],['H','メルマガ\nNo.','mailNo','text'],
+ ['I','WP\nNo.','wpNo','text'],['J','事例\n会社','jireiCompany','text'],['K','施策内容\n※コンテンツのタイトル記載必須','naiyo','long'],
+ ['L','担当者','tanto','list'],['M','backlog','backlog','url'],['N','月次抽出課題\n優先順位','priority','list'],['O','ステータス','status','list'],
+ ['P','着手日','startDate','date'],['Q','公開/配信/実施日','release','date'],['R','検証日','check','date'],
+ ['S','KPI','k0.kpi','list'],['T','目標','k0.goal','text'],['U','実績','k0.actual','text'],
+ ['V','KPI','k1.kpi','list'],['W','目標','k1.goal','text'],['X','実績','k1.actual','text'],
+ ['Y','KPI','k2.kpi','list'],['Z','目標','k2.goal','text'],['AA','実績','k2.actual','text']];
+const SH_EXTRA={UN:[],
+ SCH:[['AB','KPI','k3.kpi','list'],['AC','実績','k3.actual','text']],
+ MED:[['AB','KPI','k3.kpi','list'],['AC','実績','k3.actual','text']],
+ IS:[['AB','実績','k2.actualExtra','text'],['AC','KPI','k3.kpi','list'],['AD','実績','k3.actual','text']]};
+/* 列幅（Excelの列幅＝文字数。施策管理表.xlsx から取得 2026-11-24） */
+const SH_W={
+ UN:[6.43,8.43,23.29,9.29,20.29,14.43,7.43,8.43,7.43,8.43,62.71,10.86,21.14,11.86,9.57,12.71,12.71,12.71,10.71,23.43,23.43,10.71,23.43,23.43,10.71,23.43,23.43],
+ SCH:[8.29,8.29,20.29,9.29,20.71,14.86,7.29,7.29,8.43,8.43,107.14,13.29,15.29,12.71,13,12.71,8.43,10.71,10.57,19.86,19.86,10.57,19.86,19.86,10.57,19.86,19.86,10.71,30.71],
+ MED:[8.29,8.29,25.43,9.29,21.57,20.71,7,8.43,8.43,8.43,59.86,10.71,13.43,12.57,10.71,10.57,12.71,12.71,10.14,19.86,24.57,10.14,19.86,24.57,10.14,19.86,24.57,10.71,30.71],
+ IS:[8.29,8.29,30.71,8.71,20.71,8.43,7.86,8.43,8.43,8.43,35.43,10.71,14.29,12,12.29,13.57,11.57,12.71,10.86,21.29,21.29,10.86,21.29,21.29,10.86,21.29,21.29,32.14,10.71,30.71]};
+/* 見出しの色（施策管理表.xlsx のテーマ色から算出） */
+const SH_C={h2:'#358E94',h2o:'#FF6D01',pa:'#B5E5E8',d:'#AEDCBA',c:'#F7B4AE',ex:'#d9d9d9'};
+const SH_ORANGE=new Set(['O','Q','U','X','AA']);
+const SH={sheet:null,rows:[],cols:[],r:0,c:0,er:0,ec:0,editing:false,mode:null,composing:false,undo:[],redo:[],panel:false,panelRow:null,drag:false,dd:null,inited:false};
+function shCols(biz){return SH_BASE.concat(SH_EXTRA[biz]||[]).map((c,i)=>({L:c[0],label:c[1],f:c[2],t:c[3],w:(SH_W[biz]||[])[i]||8.43}));}
+function shPx(w){return Math.round(w*7+5);}
+function shKsets(s){if(Array.isArray(s.kpiSets)&&s.kpiSets.length)return s.kpiSets;return(s.kpi||s.goal||s.actual)?[{kpi:s.kpi||null,goal:s.goal||null,actual:s.actual||null}]:[];}
+function shKsetHas(k){return !!(k&&(k.kpi||k.goal||k.actual||k.actualExtra));}
+function shGet(s,f){const m=f.match(/^k(\d)\.(\w+)$/);if(m){const k=shKsets(s)[+m[1]];return k&&k[m[2]]!=null?String(k[m[2]]):'';}return s[f]==null?'':String(s[f]);}
+function shSetRaw(s,f,v){
+  v=(v===''||v==null)?null:v;
+  const m=f.match(/^k(\d)\.(\w+)$/);
+  if(!m){s[f]=v;return;}
+  if(!Array.isArray(s.kpiSets)||!s.kpiSets.length)s.kpiSets=shKsets(s).map(x=>Object.assign({},x));
+  const i=+m[1];while(s.kpiSets.length<=i)s.kpiSets.push({kpi:null,goal:null,actual:null});
+  s.kpiSets[i]=Object.assign({},s.kpiSets[i],{[m[2]]:v});
+  while(s.kpiSets.length&&!shKsetHas(s.kpiSets[s.kpiSets.length-1]))s.kpiSets.pop();
+  const k0=s.kpiSets[0]||{};s.kpi=k0.kpi||null;s.goal=k0.goal||null;s.actual=k0.actual||null;
+}
+function shNormDate(v){
+  v=String(v||'').trim();if(!v)return '';
+  let m=v.match(/^(\d{4})[\/\-.年](\d{1,2})[\/\-.月](\d{1,2})日?(?:[ T].*)?$/);if(m)return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');
+  m=v.match(/^(\d{1,2})[\/\-.月](\d{1,2})日?$/);if(m)return new Date().getFullYear()+'-'+m[1].padStart(2,'0')+'-'+m[2].padStart(2,'0');
+  m=v.match(/^(\d{4})(\d{2})(\d{2})$/);if(m)return m[1]+'-'+m[2]+'-'+m[3];
+  return v;
+}
+function shDisp(c,v){if(v==='')return '';if(c.t==='date'){const m=String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?m[1]+'/'+m[2]+'/'+m[3]:String(v);}return String(v);}
+function shNormVal(c,v){v=v==null?'':String(v).replace(/\r\n?/g,'\n');if(c.t!=='long')v=v.replace(/\n+$/,'');if(c.t==='date')v=shNormDate(v);return v.trim()===''?'':v;}
+function shPrefs(){try{return JSON.parse(localStorage.getItem('smSheetPrefs_v1')||'{}')||{};}catch(e){return {};}}
+function shSt(){const p=shPrefs();const s=p[SH.sheet]||{};return{sort:Array.isArray(s.sort)?s.sort:[],filters:(s.filters&&typeof s.filters==='object')?s.filters:{},widths:(s.widths&&typeof s.widths==='object')?s.widths:{},freeze:(s.freeze!=null&&!isNaN(+s.freeze))?+s.freeze:1};}
+/* 列幅：各自が変えた幅（ブラウザに保存）があればそれを、なければExcelの列幅 */
+function shColPx(ci){const c=SH.cols[ci];const w=(SH.widths||{})[c.L];return w?+w:shPx(c.w);}
+/* 列の固定（ウィンドウ枠の固定）：左から SH.freeze 列を固定表示 */
+function shApplyFreeze(){
+  let st=document.getElementById('shFzStyle');if(!st){st=document.createElement('style');st.id='shFzStyle';document.head.appendChild(st);}
+  const rn=document.querySelector('#shTbl tr.sh-letters th.rn');let left=rn?rn.offsetWidth:42;let css='';
+  const n=Math.min(SH.freeze||0,SH.cols.length);
+  for(let i=0;i<n;i++){css+=`#shTbl td[data-c="${i}"],#shTbl thead th[data-c="${i}"]{position:sticky;left:${left}px}#shTbl td[data-c="${i}"]{z-index:1}#shTbl thead th[data-c="${i}"]{z-index:4}`;left+=shColPx(i);}
+  if(n>0)css+=`#shTbl td[data-c="${n-1}"],#shTbl thead th[data-c="${n-1}"]{border-right:2px solid #8c8c8c}`;
+  st.textContent=css;SH.frozenW=left-(rn?rn.offsetWidth:42);
+}
+function shSetFreeze(v){const st=shSt();st.freeze=+v;shPutSt(st);SH.freeze=+v;shApplyFreeze();shPlaceEditor();}
+function shSetFs(fs){SH.fs=fs;try{localStorage.setItem('smSheetFs',fs);}catch(e){}shApplyFs();shPlaceEditor();}
+function shApplyFs(){const w=document.getElementById('smSheetWrap');['s','m','l'].forEach(x=>w.classList.toggle('fs-'+x,SH.fs===x));document.querySelectorAll('#shFs span[data-fs]').forEach(e=>e.classList.toggle('on',e.dataset.fs===SH.fs));}
+function shPutSt(st){const p=shPrefs();p[SH.sheet]=st;try{localStorage.setItem('smSheetPrefs_v1',JSON.stringify(p));}catch(e){}}
+function shBuildRows(){
+  const st=shSt();
+  const showDel=!!(document.getElementById('smShowDeleted')||{}).checked;
+  const q=((document.getElementById('smSearch')||{}).value||'').trim().toLowerCase();
+  let rows=(DATA.shisaku[SH.sheet]||[]).filter(s=>showDel?!!s.deleteFlag:!s.deleteFlag);
+  if(q)rows=rows.filter(s=>SH.cols.some(c=>shGet(s,c.f).toLowerCase().includes(q)));
+  for(const L in st.filters){const c=SH.cols.find(x=>x.L===L);const vals=st.filters[L];if(!c||!Array.isArray(vals))continue;const set=new Set(vals);rows=rows.filter(s=>set.has(shDisp(c,shGet(s,c.f))));}
+  if(st.sort.length){
+    rows=rows.map((s,i)=>[s,i]);
+    rows.sort((a,b)=>{for(const so of st.sort){const c=SH.cols.find(x=>x.L===so.L);if(!c)continue;const va=shGet(a[0],c.f),vb=shGet(b[0],c.f);if(va===''&&vb!=='')return 1;if(vb===''&&va!=='')return -1;const r=smCmpVal(va,vb);if(r)return r*so.dir;}return a[1]-b[1];});
+    rows=rows.map(x=>x[0]);
+  }
+  SH.rows=rows;
+}
+function shCellHtml(s,c,ci,ri){
+  const d=shDisp(c,shGet(s,c.f));let inner=escHtml(d);
+  if(c.t==='url'&&d){const u=safeUrl(d);if(u)inner=`<a class="sh-link" href="${escHtml(u)}" target="_blank" rel="noopener" onmousedown="event.stopPropagation()">${escHtml(d)}</a>`;}
+  return `<td class="${ci===0?'c0':''}${s.deleteFlag?' del':''}" data-r="${ri}" data-c="${ci}"${d.length>8?` title="${escHtml(d)}"`:''}>${inner}</td>`;
+}
+function renderShisakuSheet(keepRows){
+  if(!SH.inited)shInit();
+  if(!SH.sheet)SH.sheet=BIZ4.includes(ST.biz)?ST.biz:'UN';
+  if(BIZ4.includes(ST.biz)&&ST.biz!==SH.sheet){SH.sheet=ST.biz;SH.r=SH.c=SH.er=SH.ec=0;}
+  if(SH.editing)shCommit();
+  shCloseDd();
+  ensureShisakuMasters();
+  SH.cols=shCols(SH.sheet);
+  if(!keepRows)shBuildRows();
+  const st=shSt(),cols=SH.cols;
+  SH.widths=st.widths;SH.freeze=st.freeze;
+  if(!SH.fs){try{SH.fs=localStorage.getItem('smSheetFs')||'m';}catch(e){SH.fs='m';}}
+  shApplyFs();
+  const fz=document.getElementById('shFreeze');if(fz)fz.value=String(SH.freeze);
+  const rs=i=>`<span class="sh-rs" data-rc="${i}" title="ドラッグで列幅を変更（ダブルクリックで元の幅）"></span>`;
+  let h='<colgroup><col style="width:42px">'+cols.map((c,i)=>`<col style="width:${shColPx(i)}px">`).join('')+'</colgroup><thead>';
+  h+='<tr class="sh-letters"><th class="rn" data-corner="1" title="すべて選択"></th>'+cols.map((c,i)=>`<th data-c="${i}">${c.L}${rs(i)}</th>`).join('')+'</tr>';
+  /* 1行目：P/A（B〜D）・D（E〜Q）・C（R〜AA）。列の固定に対応するため1列ずつのセルで、Excelの結合セルと同じ見た目にする */
+  h+='<tr class="sh-h1"><th class="rn">1</th>'+cols.map((c,i)=>{
+    const g=(i>=1&&i<=3)?['P/A',SH_C.pa,1,3]:(i>=4&&i<=16)?['D',SH_C.d,4,16]:(i>=17&&i<=26)?['C',SH_C.c,17,26]:null;
+    if(!g)return `<th data-c="${i}" style="background:#fff"></th>`;
+    return `<th data-c="${i}" style="background:${g[1]};${i<g[3]?'border-right-color:'+g[1]+';':''}text-align:left;padding-left:6px">${i===g[2]?g[0]:''}</th>`;
+  }).join('')+'</tr>';
+  h+='<tr class="sh-h2"><th class="rn">2</th>'+cols.map((c,i)=>{
+    const si=st.sort.findIndex(x=>x.L===c.L);
+    const so=si>=0?((st.sort[si].dir>0?'▲':'▼')+(st.sort.length>1?String(si+1):'')):'';
+    const on=st.filters[c.L]?' on':'';
+    const ex=i>=27;const bg=ex?SH_C.ex:(SH_ORANGE.has(c.L)?SH_C.h2o:SH_C.h2);
+    return `<th data-c="${i}" style="background:${bg};color:${ex?'#333':'#fff'}" title="${escHtml(c.label.replace(/\n/g,''))}">${escHtml(c.label).replace(/\n/g,'<br>')}${so?`<span class="sh-so">${so}</span>`:''}<span class="sh-fbtn${on}" data-fc="${i}" title="並べ替え・フィルタ">▾</span>${rs(i)}</th>`;
+  }).join('')+'</tr></thead><tbody>';
+  SH.rows.forEach((s,ri)=>{h+=`<tr><th class="rn" data-r="${ri}">${ri+3}</th>`+cols.map((c,ci)=>shCellHtml(s,c,ci,ri)).join('')+'</tr>';});
+  if(!SH.rows.length)h+=`<tr><th class="rn">3</th><td colspan="${cols.length}" style="color:#888;text-align:left;cursor:default">表示する行がありません（検索・フィルタ・「削除候補を表示」を確認してください）</td></tr>`;
+  h+='</tbody>';
+  const tbl=document.getElementById('shTbl');tbl.innerHTML=h;
+  tbl.style.width=(42+cols.reduce((a,c,i)=>a+shColPx(i),0))+'px';
+  shApplyFreeze();
+  SH.r=Math.min(SH.r,Math.max(0,SH.rows.length-1));SH.er=Math.min(SH.er,Math.max(0,SH.rows.length-1));
+  SH.c=Math.min(SH.c,cols.length-1);SH.ec=Math.min(SH.ec,cols.length-1);
+  document.getElementById('shTabs').innerHTML=BIZ4.map(b=>`<div class="sh-tab${b===SH.sheet?' on':''}" onclick="shSwitchSheet('${b}')">${b}</div>`).join('')+'<div class="sh-status" id="shStatus"></div>';
+  SH.panelRow=null;
+  shPaintSel();
+}
+function shSwitchSheet(b){if(SH.editing)shCommit();if(b===SH.sheet)return;ST.biz=b;SH.sheet=b;SH.r=SH.c=SH.er=SH.ec=0;initUI();renderAll();}
+function shCell(r,c){const tb=document.getElementById('shTbl').tBodies[0];const tr=tb&&tb.rows[r];return tr&&tr.cells[c+1]&&tr.cells[c+1].dataset.c!=null?tr.cells[c+1]:null;}
+function shRange(){return[Math.min(SH.r,SH.er),Math.max(SH.r,SH.er),Math.min(SH.c,SH.ec),Math.max(SH.c,SH.ec)];}
+let shPainted=[];
+function shPaintSel(){
+  shPainted.forEach(el=>el.classList.remove('sel','act','hl'));shPainted=[];
+  const ed=document.getElementById('shEd');if(!SH.editing)ed.value='';
+  if(SH.rows.length){
+    const [r0,r1,c0,c1]=shRange();
+    const tb=document.getElementById('shTbl').tBodies[0];
+    for(let r=r0;r<=r1;r++){const tr=tb.rows[r];if(!tr)continue;tr.cells[0].classList.add('hl');shPainted.push(tr.cells[0]);for(let c=c0;c<=c1;c++){const el=tr.cells[c+1];if(!el)continue;el.classList.add(r===SH.r&&c===SH.c?'act':'sel');shPainted.push(el);}}
+    const lr=document.querySelector('#shTbl tr.sh-letters');for(let c=c0;c<=c1;c++){const el=lr&&lr.cells[c+1];if(el){el.classList.add('hl');shPainted.push(el);}}
+  }
+  shPlaceEditor();shUpdateStatus();
+  if(SH.panel)shRenderPanel();
+}
+function shXY(el){const sc=document.getElementById('shScroll');const rr=el.getBoundingClientRect(),sr=sc.getBoundingClientRect();return{x:rr.left-sr.left+sc.scrollLeft-sc.clientLeft,y:rr.top-sr.top+sc.scrollTop-sc.clientTop,w:rr.width,h:rr.height};}
+function shPlaceEditor(){
+  const ed=document.getElementById('shEd'),b=document.getElementById('shDdBtn');
+  const el=SH.rows.length?shCell(SH.r,SH.c):null;
+  if(!el){ed.style.left='-9999px';b.style.display='none';return;}
+  const p=shXY(el),c=SH.cols[SH.c];
+  ed.style.left=p.x+'px';ed.style.top=p.y+'px';
+  if(SH.editing){ed.style.width=Math.max(p.w,c.t==='long'?380:Math.min(p.w*1.5,300))+'px';ed.style.height=(c.t==='long'?96:Math.max(p.h,22))+'px';}
+  else{ed.style.width=p.w+'px';ed.style.height=p.h+'px';}
+  if(c.t==='list'&&!SH.editing){b.style.display='block';b.style.left=(p.x+p.w)+'px';b.style.top=p.y+'px';b.style.height=p.h+'px';}else b.style.display='none';
+  if(SH.dd)shPlaceDd();
+}
+function shEnsureVisible(r,c){
+  const el=shCell(r,c);const sc=document.getElementById('shScroll');if(!el)return;
+  const hh=document.querySelector('#shTbl thead').offsetHeight;
+  const rnw=document.querySelector('#shTbl tr.sh-letters th.rn').offsetWidth;const lw=rnw+(SH.frozenW||0);
+  const top=el.offsetTop,bot=top+el.offsetHeight;
+  if(top-hh<sc.scrollTop)sc.scrollTop=top-hh;else if(bot>sc.scrollTop+sc.clientHeight)sc.scrollTop=bot-sc.clientHeight;
+  if(c>=(SH.freeze||0)){const left=el.offsetLeft,right=left+el.offsetWidth;if(left-lw<sc.scrollLeft)sc.scrollLeft=left-lw;else if(right>sc.scrollLeft+sc.clientWidth)sc.scrollLeft=right-sc.clientWidth;}
+}
+function shMove(dr,dc,extend){
+  const R=SH.rows.length,C=SH.cols.length;if(!R)return;shCloseDd();
+  if(extend){SH.er=Math.max(0,Math.min(R-1,SH.er+dr));SH.ec=Math.max(0,Math.min(C-1,SH.ec+dc));shPaintSel();shEnsureVisible(SH.er,SH.ec);}
+  else{SH.r=Math.max(0,Math.min(R-1,SH.r+dr));SH.c=Math.max(0,Math.min(C-1,SH.c+dc));SH.er=SH.r;SH.ec=SH.c;shPaintSel();shEnsureVisible(SH.r,SH.c);}
+  shPlaceEditor();
+}
+function shSelect(r,c,er,ec){SH.r=r;SH.c=c;SH.er=er==null?r:er;SH.ec=ec==null?c:ec;shCloseDd();shPaintSel();}
+/* ---- 入力 ---- */
+function shStartEdit(mode,initial){
+  if(!SH.rows.length)return;
+  const ed=document.getElementById('shEd');const s=SH.rows[SH.r],c=SH.cols[SH.c];
+  SH.editing=true;SH.mode=mode;
+  if(initial!==null){ed.value=(initial!==undefined)?initial:shDisp(c,shGet(s,c.f));}
+  ed.classList.add('on');document.getElementById('shDdBtn').style.display='none';
+  shPlaceEditor();ed.focus({preventScroll:true});
+  if(mode==='edit'&&initial===undefined){ed.selectionStart=ed.selectionEnd=ed.value.length;}
+  if(c.t==='list')shOpenDd(true);
+}
+function shCommit(){
+  if(!SH.editing)return;
+  const ed=document.getElementById('shEd');const v=ed.value;
+  SH.editing=false;SH.mode=null;ed.classList.remove('on');shCloseDd();
+  const s=SH.rows[SH.r],c=SH.cols[SH.c];
+  if(s&&c)shApply([{s,c,v}]);
+  ed.value='';shPlaceEditor();
+}
+function shCancel(){const ed=document.getElementById('shEd');SH.editing=false;SH.mode=null;ed.classList.remove('on');ed.value='';shCloseDd();shPlaceEditor();}
+function shRefreshCell(s,c){
+  const ri=SH.rows.indexOf(s),ci=SH.cols.indexOf(c);if(ri<0||ci<0)return;
+  const el=shCell(ri,ci);if(!el)return;
+  const tmp=document.createElement('table');tmp.innerHTML='<tbody><tr>'+shCellHtml(s,c,ci,ri)+'</tr></tbody>';
+  const nt=tmp.rows[0].cells[0];el.innerHTML=nt.innerHTML;if(nt.title)el.title=nt.title;else el.removeAttribute('title');
+}
+/* changes:[{s,c,v}]。opts.fromPanel=true のときは詳細パネルを描き直さない（入力中のフォーカスを保つ） */
+function shApply(changes,opts){
+  opts=opts||{};const batch=[];const now=new Date().toISOString();const biz=SH.sheet;
+  for(const ch of changes){
+    const nv=shNormVal(ch.c,ch.v);const ov=shGet(ch.s,ch.c.f);
+    if(ov===nv)continue;
+    if(ch.c.f==='no'){
+      if(!nv){toast('No は空にできません');continue;}
+      if((DATA.shisaku[biz]||[]).some(x=>x!==ch.s&&String(x.no)===nv)){toast('No.'+nv+' はすでに使われています');continue;}
+    }
+    shSetRaw(ch.s,ch.c.f,nv);ch.s.updatedAt=now;
+    batch.push({s:ch.s,f:ch.c.f,o:ov,n:nv});shRefreshCell(ch.s,ch.c);
+  }
+  if(!batch.length)return 0;
+  SH.undo.push(batch);if(SH.undo.length>300)SH.undo.shift();SH.redo=[];
+  markUnsaved();shUpdateStatus();
+  if(SH.panel&&!opts.fromPanel){SH.panelRow=null;shRenderPanel();}
+  return batch.length;
+}
+function shUndo(redo){
+  if(SH.editing)shCommit();
+  const from=redo?SH.redo:SH.undo,to=redo?SH.undo:SH.redo;
+  const b=from.pop();if(!b){toast(redo?'やり直す操作はありません':'元に戻す操作はありません');return;}
+  const now=new Date().toISOString();let structural=false;
+  const list=redo?b:b.slice().reverse();
+  for(const x of list){
+    if(x.type==='add'){structural=true;const arr=DATA.shisaku[x.biz]=DATA.shisaku[x.biz]||[];if(redo){if(!arr.includes(x.s))arr.push(x.s);}else{const i=arr.indexOf(x.s);if(i>=0)arr.splice(i,1);}continue;}
+    shSetRaw(x.s,x.f,redo?x.n:x.o);x.s.updatedAt=now;
+    const c=SH.cols.find(cc=>cc.f===x.f);if(c)shRefreshCell(x.s,c);
+  }
+  to.push(b);markUnsaved();
+  if(structural)renderShisakuSheet();
+  else{const first=b[0];const ri=SH.rows.indexOf(first.s),ci=SH.cols.findIndex(cc=>cc.f===first.f);if(ri>=0&&ci>=0){shSelect(ri,ci);shEnsureVisible(ri,ci);}else shPaintSel();SH.panelRow=null;if(SH.panel)shRenderPanel();}
+  toast(redo?'やり直しました':'元に戻しました');
+}
+function shClearRange(){const [r0,r1,c0,c1]=shRange();const ch=[];for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){if(SH.cols[c].f==='no')continue;ch.push({s:SH.rows[r],c:SH.cols[c],v:''});}shApply(ch);}
+function shFillDown(){
+  const [r0,r1,c0,c1]=shRange();const ch=[];
+  const src=(r0===r1)?r0-1:r0;if(src<0)return;
+  for(let c=c0;c<=c1;c++){if(SH.cols[c].f==='no')continue;const v=shGet(SH.rows[src],SH.cols[c].f);for(let r=(r0===r1?r0:r0+1);r<=r1;r++)ch.push({s:SH.rows[r],c:SH.cols[c],v});}
+  shApply(ch);
+}
+function shSelTsv(){
+  const [r0,r1,c0,c1]=shRange();const lines=[];
+  for(let r=r0;r<=r1;r++){const s=SH.rows[r];const vals=[];for(let c=c0;c<=c1;c++){let d=shDisp(SH.cols[c],shGet(s,SH.cols[c].f));if(/[\t\n"]/.test(d))d='"'+d.replace(/"/g,'""')+'"';vals.push(d);}lines.push(vals.join('\t'));}
+  return lines.join('\r\n');
+}
+function shParseTsv(t){
+  t=String(t).replace(/\r\n?/g,'\n');if(t.endsWith('\n'))t=t.slice(0,-1);
+  const rows=[];let row=[],cell='',q=false;
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){if(ch==='"'){if(t[i+1]==='"'){cell+='"';i++;}else q=false;}else cell+=ch;}
+    else if(ch==='"'&&cell===''){q=true;}
+    else if(ch==='\t'){row.push(cell);cell='';}
+    else if(ch==='\n'){row.push(cell);rows.push(row);row=[];cell='';}
+    else cell+=ch;}
+  row.push(cell);rows.push(row);return rows;
+}
+function shPaste(text){
+  if(!SH.rows.length)return;
+  const data=shParseTsv(text);if(!data.length)return;
+  const [r0,r1,c0,c1]=shRange();const ch=[];let skipped=0;
+  if(data.length===1&&data[0].length===1){for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){if(SH.cols[c].f==='no'&&(r1>r0||c1>c0))continue;ch.push({s:SH.rows[r],c:SH.cols[c],v:data[0][0]});}}
+  else{data.forEach((row,i)=>{const r=r0+i;if(r>=SH.rows.length){skipped++;return;}row.forEach((v,j)=>{const c=c0+j;if(c<SH.cols.length)ch.push({s:SH.rows[r],c:SH.cols[c],v});});});
+    SH.er=Math.min(SH.rows.length-1,r0+data.length-1);SH.ec=Math.min(SH.cols.length-1,c0+Math.max(...data.map(x=>x.length))-1);SH.r=r0;SH.c=c0;}
+  const n=shApply(ch);shPaintSel();
+  toast('貼り付けました（'+n+'セル）'+(skipped?'／表の下にはみ出した'+skipped+'行は貼り付けていません（先に「＋行を追加」してください）':''));
+}
+/* ---- 一覧から選ぶ（プルダウン） ---- */
+function shListOptions(c){
+  const m=DATA.shisakuMasters||{};const f=c.f.replace(/^k\d\./,'');
+  const base=f==='kpi'?(m.kpiItems||[]):(f==='tanto'?[]:(m[f]||[]));
+  const used=(DATA.shisaku[SH.sheet]||[]).map(s=>shGet(s,c.f)).filter(Boolean);
+  return [...new Set([...base,...used].map(String))].sort((a,b)=>a.localeCompare(b,'ja'));
+}
+function shOpenDd(byInput){const c=SH.cols[SH.c];if(!c||c.t!=='list'||!SH.rows.length)return;SH.dd={all:shListOptions(c),items:[],hi:-1,byInput:!!byInput};shFilterDd();}
+function shFilterDd(){if(!SH.dd)return;const q=(SH.dd.byInput&&SH.editing)?document.getElementById('shEd').value.trim().toLowerCase():'';SH.dd.items=SH.dd.all.filter(v=>!q||v.toLowerCase().includes(q));SH.dd.hi=-1;shRenderDd();}
+function shRenderDd(){
+  const dd=document.getElementById('shDd');
+  if(!SH.dd||!SH.dd.items.length){dd.style.display='none';return;}
+  dd.innerHTML=SH.dd.items.map((v,i)=>`<div class="sh-dd-item${i===SH.dd.hi?' hi':''}" data-i="${i}">${escHtml(v)}</div>`).join('');
+  dd.style.display='block';shPlaceDd();
+  const hi=dd.querySelector('.hi');if(hi)hi.scrollIntoView({block:'nearest'});
+}
+function shPlaceDd(){const dd=document.getElementById('shDd');const el=shCell(SH.r,SH.c);if(!el){dd.style.display='none';return;}const p=shXY(el);const ed=document.getElementById('shEd');const h=SH.editing?Math.max(p.h,ed.offsetHeight):p.h;dd.style.left=p.x+'px';dd.style.top=(p.y+h)+'px';dd.style.minWidth=Math.max(p.w,160)+'px';}
+function shDdMove(d){if(!SH.dd||!SH.dd.items.length)return;SH.dd.hi=Math.max(0,Math.min(SH.dd.items.length-1,SH.dd.hi+d));shRenderDd();}
+function shDdPick(i){
+  if(!SH.dd||i<0||i>=SH.dd.items.length)return;const v=SH.dd.items[i];
+  if(SH.editing){document.getElementById('shEd').value=v;shCommit();}
+  else{shApply([{s:SH.rows[SH.r],c:SH.cols[SH.c],v}]);shCloseDd();}
+  document.getElementById('shEd').focus({preventScroll:true});
+}
+function shCloseDd(){SH.dd=null;const dd=document.getElementById('shDd');if(dd)dd.style.display='none';}
+/* ---- 並べ替え・フィルタ（Excelのオートフィルタ風） ---- */
+function shCloseFilter(){const fp=document.getElementById('shFp');if(fp)fp.remove();}
+function shOpenFilter(ci,btn){
+  shCloseFilter();if(SH.editing)shCommit();
+  const c=SH.cols[ci];const st=shSt();
+  const vals=[...new Set((DATA.shisaku[SH.sheet]||[]).filter(s=>!s.deleteFlag).map(s=>shDisp(c,shGet(s,c.f))))].sort((a,b)=>a===''?1:b===''?-1:smCmpVal(a,b));
+  const cur=Array.isArray(st.filters[c.L])?new Set(st.filters[c.L]):null;
+  const name=c.L+'列「'+c.label.replace(/\n.*$/s,'')+'」';
+  const fp=document.createElement('div');fp.id='shFp';
+  fp.innerHTML=`<div style="font-weight:700;margin-bottom:4px">${escHtml(name)}</div>
+    <div class="fp-it" data-a="asc">▲ 昇順で並べ替え</div><div class="fp-it" data-a="desc">▼ 降順で並べ替え</div>
+    <div class="fp-it" data-a="addasc">＋ 並べ替えの条件に追加（昇順）</div><div class="fp-it" data-a="adddesc">＋ 並べ替えの条件に追加（降順）</div>
+    <div class="fp-it" data-a="clear">✕ この列のフィルタをクリア</div>
+    <input class="fp-q" placeholder="値を検索">
+    <div class="fp-list"><label><input type="checkbox" data-all="1">（すべて選択）</label>${vals.map((v,i)=>`<label data-v="${escHtml(v.toLowerCase())}"><input type="checkbox" data-i="${i}" ${!cur||cur.has(v)?'checked':''}>${v===''?'（空白セル）':escHtml(trunc(v,40))}</label>`).join('')}</div>
+    <div class="fp-ft"><button class="btn btn-primary btn-sm" data-a="ok">OK</button><button class="btn btn-ghost btn-sm" data-a="cancel">キャンセル</button></div>`;
+  document.body.appendChild(fp);
+  const rr=btn.getBoundingClientRect();
+  fp.style.left=Math.max(4,Math.min(window.innerWidth-260,rr.right-250))+'px';
+  fp.style.top=Math.max(4,Math.min(window.innerHeight-fp.offsetHeight-4,rr.bottom+2))+'px';
+  const boxes=[...fp.querySelectorAll('input[data-i]')];const all=fp.querySelector('input[data-all]');
+  const syncAll=()=>{all.checked=boxes.every(b=>b.checked);};syncAll();
+  all.onchange=()=>{boxes.forEach(b=>{if(b.closest('label').style.display!=='none')b.checked=all.checked;});};
+  boxes.forEach(b=>b.onchange=syncAll);
+  fp.querySelector('.fp-q').oninput=e=>{const q=e.target.value.trim().toLowerCase();boxes.forEach(b=>{const l=b.closest('label');l.style.display=(!q||l.dataset.v.includes(q))?'':'none';});};
+  fp.addEventListener('mousedown',e=>e.stopPropagation());
+  fp.addEventListener('click',e=>{
+    const a=e.target.closest('[data-a]');if(!a)return;const act=a.dataset.a;const s2=shSt();
+    if(act==='asc'||act==='desc')s2.sort=[{L:c.L,dir:act==='asc'?1:-1}];
+    else if(act==='addasc'||act==='adddesc'){s2.sort=s2.sort.filter(x=>x.L!==c.L);s2.sort.push({L:c.L,dir:act==='addasc'?1:-1});}
+    else if(act==='clear')delete s2.filters[c.L];
+    else if(act==='ok'){const chosen=boxes.filter(b=>b.checked).map(b=>vals[+b.dataset.i]);if(chosen.length===vals.length)delete s2.filters[c.L];else s2.filters[c.L]=chosen;}
+    else if(act==='cancel'){shCloseFilter();return;}
+    shPutSt(s2);shCloseFilter();SH.r=SH.c=SH.er=SH.ec=0;renderShisakuSheet();
+  });
+}
+function shClearSort(){const st=shSt();st.sort=[];shPutSt(st);renderShisakuSheet();toast('並べ替えを解除しました（元の行の順）');}
+function shClearFilters(){const st=shSt();st.filters={};shPutSt(st);renderShisakuSheet();toast('フィルタをすべて解除しました');}
+/* ---- 行の追加・詳細パネル ---- */
+function shAddRow(){
+  if(SH.editing)shCommit();
+  const biz=SH.sheet;DATA.shisaku[biz]=DATA.shisaku[biz]||[];
+  const s={no:nextShisakuNo(biz),source:'app',updatedAt:new Date().toISOString()};
+  DATA.shisaku[biz].push(s);SH.undo.push([{type:'add',biz,s}]);SH.redo=[];markUnsaved();
+  SH.rows.push(s);renderShisakuSheet(true);
+  const r=SH.rows.length-1;shSelect(r,1);shEnsureVisible(r,1);document.getElementById('shEd').focus({preventScroll:true});
+  toast('行を追加しました：'+biz+' No.'+s.no);
+}
+function shTogglePanel(force){SH.panel=force==null?!SH.panel:!!force;SH.panelRow=null;document.getElementById('shPanelBtn').classList.toggle('btn-primary',SH.panel);document.getElementById('shPanelBtn').classList.toggle('btn-ghost',!SH.panel);shRenderPanel();shPlaceEditor();}
+function shRenderPanel(){
+  const p=document.getElementById('shPanel');
+  if(!SH.panel){p.style.display='none';return;}
+  p.style.display='block';
+  const s=SH.rows[SH.r];
+  if(!s){p.innerHTML='<div class="muted">行を選んでください</div>';SH.panelRow=null;return;}
+  if(SH.panelRow===s)return;
+  SH.panelRow=s;
+  const biz=SH.sheet,no=String(s.no||''),qno=no.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const fieldHtml=(c,ci)=>{
+    const v=shGet(s,c.f);let inp;
+    if(c.t==='long')inp=`<textarea rows="3" data-ci="${ci}">${escHtml(v)}</textarea>`;
+    else if(c.t==='list')inp=`<input data-ci="${ci}" list="shdl${ci}" value="${escHtml(v)}"><datalist id="shdl${ci}">${shListOptions(c).map(o=>`<option value="${escHtml(o)}">`).join('')}</datalist>`;
+    else if(c.t==='date')inp=`<input type="date" data-ci="${ci}" value="${/^\d{4}-\d{2}-\d{2}$/.test(v)?v:''}">`;
+    else inp=`<input data-ci="${ci}" value="${escHtml(v)}">`;
+    const u=c.t==='url'?safeUrl(v):null;
+    return `<label>${c.L}　${escHtml(c.label.replace(/\n.*$/s,'').replace(/\n/g,''))}</label><div>${inp}${u?`<div style="margin-top:2px"><a href="${escHtml(u)}" target="_blank" rel="noopener">Backlogを開く ↗</a></div>`:''}</div>`;
+  };
+  const grp=(title,bg,from,to)=>`<div class="sh-psec" style="background:${bg}">${title}</div><div class="sh-pf">${SH.cols.map((c,ci)=>(ci>=from&&ci<=to)?fieldHtml(c,ci):'').join('')}</div>`;
+  const pd=(DATA.pdca||[]).filter(x=>x.biz===biz&&String(x.baseNo||'')===no);
+  const type=s.shisakuType||'';
+  p.innerHTML=`<div class="sh-ptitle">${escHtml(biz)} No.${escHtml(no||'-')}${s.deleteFlag?'<span class="pill pill-stop">削除候補</span>':''}<span style="margin-left:auto;cursor:pointer;color:var(--muted)" onclick="shTogglePanel(false)" title="閉じる">✕</span></div>
+    <div class="muted" style="font-size:11px;margin:2px 0 6px">${escHtml(trunc(s.naiyo||s.mokuteki||'',60))}</div>
+    <div class="sh-psec" style="background:#e0e7ff">PDCA（Check・Act）</div>
+    <div class="sh-pf"><label>施策タイプ</label><div><select id="shType"><option value="">（未設定）</option><option ${type==='単発完了型'?'selected':''}>単発完了型</option><option ${type==='継続改善型'?'selected':''}>継続改善型</option></select></div></div>
+    ${pd.length?pd.map(x=>`<div class="sh-pdca"><b>${escHtml(x.date||'')}</b>　判定：${escHtml(x.judge||'—')}　期限：${escHtml(x.due||'—')}<br>結果：${escHtml(trunc(x.result||'—',60))}<br>次の一手：${escHtml(trunc(x.act||'—',60))}<div style="text-align:right"><button class="btn btn-ghost btn-sm" onclick="editPdca('${escHtml(String(x.id)).replace(/'/g,"\\'")}')">開く・編集</button></div></div>`).join(''):'<div class="muted" style="font-size:11px;margin:6px 0">この施策のPDCA記録はまだありません</div>'}
+    <button class="btn btn-ghost btn-sm" onclick="openPdcaFrom('${biz}','${qno}')">＋この施策のPDCAを記録</button>
+    ${grp('P/A（計画）',SH_C.pa,0,3)}${grp('D（実行）',SH_C.d,4,16)}${grp('C（検証）',SH_C.c,17,SH.cols.length-1)}
+    <div class="sh-psec" style="background:#f1f5f9">操作</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${s.deleteFlag?`<button class="btn btn-ghost btn-sm" onclick="restoreSm('${biz}','${qno}')">復元</button><button class="btn btn-danger btn-sm" onclick="purgeSm('${biz}','${qno}')">完全削除</button>`:`<button class="btn btn-ghost btn-sm" onclick="duplicateSm('${biz}','${qno}')">この行を複製</button><button class="btn btn-danger btn-sm" onclick="deleteSm('${biz}','${qno}')">削除（削除候補へ）</button>`}</div>
+    <div class="muted" style="font-size:11px;margin-top:8px">最終更新：${s.updatedAt?escHtml(new Date(s.updatedAt).toLocaleString('ja-JP')):'—'}／出所：${s.source==='app'?'アプリ':'Excel取込'}</div>`;
+  p.querySelectorAll('[data-ci]').forEach(el=>{el.addEventListener('change',()=>{const c=SH.cols[+el.dataset.ci];shApply([{s,c,v:el.value}],{fromPanel:true});});});
+  const ts=p.querySelector('#shType');ts.onchange=()=>{
+    s.shisakuType=ts.value||null;s.updatedAt=new Date().toISOString();markUnsaved();shUpdateStatus();
+    if(ts.value==='継続改善型'){toast('継続改善型にしました。続けてPDCAを記録してください');openPdcaFrom(biz,no);}
+    else toast(ts.value?('施策タイプ：'+ts.value):'施策タイプを未設定にしました');
+  };
+}
+function shUpdateStatus(){
+  const el=document.getElementById('shStatus');if(!el)return;
+  const total=(DATA.shisaku[SH.sheet]||[]).filter(s=>!s.deleteFlag).length;
+  let sel='';
+  if(SH.rows.length){const [r0,r1,c0,c1]=shRange();const n=(r1-r0+1)*(c1-c0+1);if(n>1){let cnt=0,sum=0,num=0;for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){const v=shGet(SH.rows[r],SH.cols[c].f);if(v!==''){cnt++;if(/^-?\d+(\.\d+)?$/.test(v)){num++;sum+=parseFloat(v);}}}sel=`　データの個数：${cnt}`+(num?`　合計：${Math.round(sum*100)/100}`:'');}}
+  const unsaved=document.getElementById('unsavedDot')&&document.getElementById('unsavedDot').classList.contains('on');
+  el.innerHTML=`${escHtml(SH.sheet)}：${SH.rows.length}行を表示／全${total}件${sel}${unsaved?'　<span style="color:#b45309">● 未保存の変更あり（右上「💾 保存(JSON)」で保存）</span>':''}`;
+}
+/* ---- イベント（初回のみ登録） ---- */
+function shInit(){
+  SH.inited=true;
+  const sc=document.getElementById('shScroll'),ed=document.getElementById('shEd');
+  sc.addEventListener('scroll',()=>{shPlaceEditor();});
+  /* 列幅の変更（列記号・見出しの右端をドラッグ。ダブルクリックでExcelの幅に戻す） */
+  sc.addEventListener('mousedown',e=>{
+    const h=e.target.closest('.sh-rs');if(!h)return;
+    e.preventDefault();e.stopPropagation();if(SH.editing)shCommit();
+    const ci=+h.dataset.rc,x0=e.clientX,w0=shColPx(ci);const col=document.querySelectorAll('#shTbl colgroup col')[ci+1];const tbl=document.getElementById('shTbl');const t0=tbl.offsetWidth;
+    h.classList.add('on');let nw=w0;
+    const mv=ev=>{nw=Math.max(24,Math.round(w0+ev.clientX-x0));col.style.width=nw+'px';tbl.style.width=(t0+nw-w0)+'px';shPlaceEditor();};
+    const up=()=>{document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);h.classList.remove('on');
+      if(nw!==w0){const st=shSt();st.widths[SH.cols[ci].L]=nw;shPutSt(st);SH.widths=st.widths;}shApplyFreeze();shPlaceEditor();};
+    document.addEventListener('mousemove',mv);document.addEventListener('mouseup',up);
+  },true);
+  sc.addEventListener('dblclick',e=>{
+    const h=e.target.closest('.sh-rs');if(!h)return;e.preventDefault();e.stopPropagation();
+    const st=shSt();delete st.widths[SH.cols[+h.dataset.rc].L];shPutSt(st);renderShisakuSheet(true);toast('列幅を元（Excelの幅）に戻しました');
+  },true);
+  sc.addEventListener('mousedown',e=>{
+    if(e.target.closest('#shEd')||e.target.closest('#shDd')||e.target.closest('.sh-rs'))return;
+    if(e.target.closest('#shDdBtn')){e.preventDefault();if(SH.dd)shCloseDd();else shOpenDd(false);ed.focus({preventScroll:true});return;}
+    const fb=e.target.closest('.sh-fbtn');if(fb){e.preventDefault();e.stopPropagation();shOpenFilter(+fb.dataset.fc,fb);return;}
+    if(e.button!==0)return;
+    const td=e.target.closest('td[data-c]'),rn=e.target.closest('tbody th.rn[data-r]'),cl=e.target.closest('tr.sh-letters th[data-c]'),corner=e.target.closest('th[data-corner]');
+    if(!td&&!rn&&!cl&&!corner)return;
+    if(SH.editing)shCommit();
+    e.preventDefault();
+    if(td){const r=+td.dataset.r,c=+td.dataset.c;if(e.shiftKey){SH.er=r;SH.ec=c;shPaintSel();}else shSelect(r,c);SH.drag=true;}
+    else if(rn){const r=+rn.dataset.r;if(e.shiftKey){SH.er=r;SH.c=0;SH.ec=SH.cols.length-1;shPaintSel();}else{shSelect(r,0,r,SH.cols.length-1);}if(!SH.panel)shTogglePanel(true);}
+    else if(cl&&SH.rows.length){const c=+cl.dataset.c;SH.r=0;SH.c=c;SH.er=SH.rows.length-1;SH.ec=e.shiftKey?SH.ec:c;shPaintSel();}
+    else if(corner&&SH.rows.length){shSelect(0,0,SH.rows.length-1,SH.cols.length-1);}
+    ed.focus({preventScroll:true});
+  });
+  sc.addEventListener('mouseover',e=>{if(!SH.drag)return;const td=e.target.closest('td[data-c]');if(!td)return;const r=+td.dataset.r,c=+td.dataset.c;if(r!==SH.er||c!==SH.ec){SH.er=r;SH.ec=c;shPaintSel();}});
+  document.addEventListener('mouseup',()=>{SH.drag=false;});
+  document.addEventListener('mousedown',e=>{if(!e.target.closest('#shFp'))shCloseFilter();});
+  sc.addEventListener('dblclick',e=>{const td=e.target.closest('td[data-c]');if(!td||e.target.closest('a'))return;shSelect(+td.dataset.r,+td.dataset.c);shStartEdit('edit');});
+  const dd=document.getElementById('shDd');
+  dd.addEventListener('mousedown',e=>{e.preventDefault();const it=e.target.closest('.sh-dd-item');if(it)shDdPick(+it.dataset.i);});
+  ed.addEventListener('compositionstart',()=>{SH.composing=true;if(!SH.editing)shStartEdit('enter',null);});
+  ed.addEventListener('compositionend',()=>{SH.composing=false;if(SH.dd)shFilterDd();});
+  ed.addEventListener('input',()=>{if(!SH.editing){if(ed.value!=='')shStartEdit('enter',null);}else if(SH.dd&&!SH.composing)shFilterDd();});
+  ed.addEventListener('paste',e=>{if(SH.editing)return;e.preventDefault();const t=(e.clipboardData||window.clipboardData).getData('text');if(t)shPaste(t);});
+  ed.addEventListener('blur',()=>{setTimeout(()=>{if(SH.editing&&document.activeElement!==ed)shCommit();},0);});
+  ed.addEventListener('keydown',e=>{
+    if(e.isComposing||e.keyCode===229)return;
+    const k=e.key,ctrl=e.ctrlKey||e.metaKey;
+    const arrows={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]};
+    if(SH.editing){
+      if(SH.dd&&(k==='ArrowDown'||k==='ArrowUp')&&(SH.mode==='edit'||SH.dd.hi>=0||k==='ArrowDown')&&SH.dd.items.length){e.preventDefault();shDdMove(k==='ArrowDown'?1:-1);return;}
+      if(k==='Enter'&&e.altKey){e.preventDefault();const p=ed.selectionStart;ed.value=ed.value.slice(0,p)+'\n'+ed.value.slice(ed.selectionEnd);ed.selectionStart=ed.selectionEnd=p+1;return;}
+      if(k==='Enter'){e.preventDefault();if(SH.dd&&SH.dd.hi>=0)ed.value=SH.dd.items[SH.dd.hi];shCommit();shMove(e.shiftKey?-1:1,0,false);return;}
+      if(k==='Tab'){e.preventDefault();shCommit();shMove(0,e.shiftKey?-1:1,false);return;}
+      if(k==='Escape'){e.preventDefault();shCancel();return;}
+      if(SH.mode==='enter'&&arrows[k]){e.preventDefault();shCommit();shMove(arrows[k][0],arrows[k][1],false);return;}
+      return;
+    }
+    if(SH.dd){
+      if(k==='ArrowDown'||k==='ArrowUp'){e.preventDefault();shDdMove(k==='ArrowDown'?1:-1);return;}
+      if(k==='Enter'){e.preventDefault();if(SH.dd.hi>=0)shDdPick(SH.dd.hi);else shCloseDd();return;}
+      if(k==='Escape'){e.preventDefault();shCloseDd();return;}
+    }
+    if(k==='ArrowDown'&&e.altKey){e.preventDefault();shOpenDd(false);return;}
+    if(arrows[k]){e.preventDefault();let [dr,dc]=arrows[k];if(ctrl){dr*=100000;dc*=100000;}shMove(dr,dc,e.shiftKey);return;}
+    if(k==='Tab'){e.preventDefault();shMove(0,e.shiftKey?-1:1,false);return;}
+    if(k==='Enter'){e.preventDefault();shMove(e.shiftKey?-1:1,0,false);return;}
+    if(k==='PageDown'||k==='PageUp'){e.preventDefault();shMove(k==='PageDown'?20:-20,0,e.shiftKey);return;}
+    if(k==='Home'){e.preventDefault();if(ctrl)shSelect(0,0);else shSelect(SH.r,0);shEnsureVisible(SH.r,0);return;}
+    if(k==='F2'){e.preventDefault();shStartEdit('edit');return;}
+    if(k==='Delete'){e.preventDefault();shClearRange();return;}
+    if(k==='Backspace'){e.preventDefault();shStartEdit('enter','');return;}
+    if(k==='Escape'){shCloseFilter();return;}
+    if(ctrl&&(k==='z'||k==='Z')){e.preventDefault();shUndo(false);return;}
+    if(ctrl&&(k==='y'||k==='Y')){e.preventDefault();shUndo(true);return;}
+    if(ctrl&&(k==='d'||k==='D')){e.preventDefault();shFillDown();return;}
+    if(ctrl&&(k==='a'||k==='A')){e.preventDefault();if(SH.rows.length)shSelect(0,0,SH.rows.length-1,SH.cols.length-1);return;}
+    if(ctrl&&(k==='f'||k==='F')){e.preventDefault();const q=document.getElementById('smSearch');q.focus();q.select();return;}
+    if(ctrl&&'cCxX'.includes(k)&&k.length===1){if(!SH.rows.length)return;const cut=(k==='x'||k==='X');ed.value=shSelTsv();ed.select();setTimeout(()=>{ed.value='';if(cut)shClearRange();},0);return;}
+  });
+}
 
 /* ===== 施策管理タブ F2: アプリ内CRUD ===== */
 function nextShisakuNo(biz){DATA.shisakuNoSeq=DATA.shisakuNoSeq||{};const existing=(DATA.shisaku[biz]||[]).map(s=>{const m=String(s.no||'').match(new RegExp('^'+biz+'-(\\d+)$'));return m?parseInt(m[1],10):0;});const maxExisting=existing.length?Math.max(...existing):0;const n=Math.max(DATA.shisakuNoSeq[biz]||0,maxExisting)+1;DATA.shisakuNoSeq[biz]=n;return biz+'-'+String(n).padStart(3,'0');}
@@ -1180,9 +1733,7 @@ function parseShisakuKpiGroups(hdr){
 const SHISAKU_MERGE_KEYS=['daibunrui','mokuteki','kanren','method','cat','columnNo','mailNo','wpNo','jireiCompany','naiyo','tanto','backlog','priority','status','startDate','release','check'];
 function shisakuContentEqual(a,b){
   for(const k of SHISAKU_MERGE_KEYS)if((a[k]||null)!==(b[k]||null))return false;
-  const as=JSON.stringify((a.kpiSets||[]).map(x=>[x.kpi||null,x.goal||null,x.actual||null]));
-  const bs=JSON.stringify((b.kpiSets||[]).map(x=>[x.kpi||null,x.goal||null,x.actual||null]));
-  return as===bs;
+  return kpiSetsKey(a)===kpiSetsKey(b);
 }
 function mergeShisakuImport(biz,importedRecs){
   DATA.shisaku[biz]=DATA.shisaku[biz]||[];
@@ -1209,7 +1760,7 @@ function mergeShisakuImport(biz,importedRecs){
   return conflicts;
 }
 let PENDING_CONFLICTS=[];
-function kpiSetsKey(rec){return JSON.stringify((rec.kpiSets||[]).map(x=>[x.kpi||null,x.goal||null,x.actual||null]));}
+function kpiSetsKey(rec){const a=(rec.kpiSets||[]).map(x=>[x.kpi||null,x.goal||null,x.actual||null,x.actualExtra||null]);while(a.length&&a[a.length-1].every(v=>v==null))a.pop();return JSON.stringify(a);}
 function openConflictModal(conflicts,onDoneMsg){
   PENDING_CONFLICTS=conflicts.map(c=>{
     const fc={};SHISAKU_MERGE_KEYS.forEach(k=>{if((c.excel[k]||null)!==(c.app[k]||null))fc[k]='excel';});
@@ -1289,11 +1840,14 @@ document.getElementById('fShisaku').addEventListener('change',function(e){const 
       const r=rows[i];if(!r)continue;
       const naiyo=clean(r[10]),mok=clean(r[2]);
       if(!naiyo&&!mok)continue;
+      /* KPIセットはExcelの列位置のまま保持する（途中の空セットを詰めない＝シート表示で列がずれない）。
+         2つ目の実績列（ISのAB列など）は actualExtra として別に持つ。末尾の空セットだけ取り除く */
       const kpiSets=groups.map(g=>{
-        let actual=g.actIdx!=null?clean(r[g.actIdx]):null;
-        if(g.actExtraIdx!=null){const extra=clean(r[g.actExtraIdx]);if(extra)actual=actual?(actual+' / '+extra):extra;}
-        return{kpi:g.kpiIdx!=null?clean(r[g.kpiIdx]):null,goal:g.goalIdx!=null?clean(r[g.goalIdx]):null,actual};
-      }).filter(k=>k.kpi||k.goal||k.actual);
+        const o={kpi:g.kpiIdx!=null?clean(r[g.kpiIdx]):null,goal:g.goalIdx!=null?clean(r[g.goalIdx]):null,actual:g.actIdx!=null?clean(r[g.actIdx]):null};
+        if(g.actExtraIdx!=null){const extra=clean(r[g.actExtraIdx]);if(extra)o.actualExtra=extra;}
+        return o;
+      });
+      while(kpiSets.length&&!shKsetHas(kpiSets[kpiSets.length-1]))kpiSets.pop();
       const rno=clean(r[0])||nextShisakuNo(sn);
       recs.push({
         no:rno,daibunrui:clean(r[1]),mokuteki:mok,kanren:clean(r[3]),method:clean(r[4]),cat:clean(r[5]),
