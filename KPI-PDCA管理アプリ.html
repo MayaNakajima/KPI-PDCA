@@ -1153,7 +1153,7 @@ function shApply(changes,opts){
     if(ov===nv)continue;
     if(ch.c.f==='no'){
       if(!nv){toast('No は空にできません');continue;}
-      if((DATA.shisaku[biz]||[]).some(x=>x!==ch.s&&String(x.no)===nv)){toast('No.'+nv+' はすでに使われています');continue;}
+      if((DATA.shisaku[biz]||[]).some(x=>x!==ch.s&&String(x.no)===nv))toast('No.'+nv+' は他の行でも使われています（別の行として扱います）');
     }
     shSetRaw(ch.s,ch.c.f,nv);ch.s.updatedAt=now;
     batch.push({s:ch.s,f:ch.c.f,o:ov,n:nv});shRefreshCell(ch.s,ch.c);
@@ -1286,6 +1286,15 @@ function shAddRow(){
   const r=SH.rows.length-1;shSelect(r,1);shEnsureVisible(r,1);document.getElementById('shEd').focus({preventScroll:true});
   toast('行を追加しました：'+biz+' No.'+s.no);
 }
+/* 詳細パネルからの行の操作（No.が重複していても、選んだ行だけを操作する） */
+function shRowOp(op){
+  const s=SH.panelRow||SH.rows[SH.r];if(!s)return;
+  const biz=SH.sheet,arr=DATA.shisaku[biz]=DATA.shisaku[biz]||[],now=new Date().toISOString(),lbl=biz+' No.'+(s.no||'-');
+  if(op==='dup'){const copy=Object.assign({},s,{no:nextShisakuNo(biz),source:'app',deleteFlag:false,updatedAt:now,naiyo:(s.naiyo||'')+'（複製）'});if(Array.isArray(s.kpiSets))copy.kpiSets=s.kpiSets.map(k=>Object.assign({},k));arr.push(copy);markUnsaved();renderAll();toast('複製しました：'+biz+' No.'+copy.no);return;}
+  if(op==='del'){if(!confirm(lbl+' を削除候補にしますか？（「削除候補を表示」で確認・復元・完全削除できます）'))return;s.deleteFlag=true;s.updatedAt=now;markUnsaved();renderAll();toast('削除候補にしました');return;}
+  if(op==='restore'){s.deleteFlag=false;s.updatedAt=now;markUnsaved();renderAll();toast('復元しました');return;}
+  if(op==='purge'){if(!confirm(lbl+' を完全に削除します。元に戻せません。よろしいですか？'))return;const i=arr.indexOf(s);if(i>=0)arr.splice(i,1);SH.panelRow=null;markUnsaved();renderAll();toast('完全に削除しました');return;}
+}
 function shTogglePanel(force){SH.panel=force==null?!SH.panel:!!force;SH.panelRow=null;document.getElementById('shPanelBtn').classList.toggle('btn-primary',SH.panel);document.getElementById('shPanelBtn').classList.toggle('btn-ghost',!SH.panel);shRenderPanel();shPlaceEditor();}
 function shRenderPanel(){
   const p=document.getElementById('shPanel');
@@ -1316,7 +1325,7 @@ function shRenderPanel(){
     <button class="btn btn-ghost btn-sm" onclick="openPdcaFrom('${biz}','${qno}')">＋この施策のPDCAを記録</button>
     ${grp('P/A（計画）',SH_C.pa,0,3)}${grp('D（実行）',SH_C.d,4,16)}${grp('C（検証）',SH_C.c,17,SH.cols.length-1)}
     <div class="sh-psec" style="background:#f1f5f9">操作</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">${s.deleteFlag?`<button class="btn btn-ghost btn-sm" onclick="restoreSm('${biz}','${qno}')">復元</button><button class="btn btn-danger btn-sm" onclick="purgeSm('${biz}','${qno}')">完全削除</button>`:`<button class="btn btn-ghost btn-sm" onclick="duplicateSm('${biz}','${qno}')">この行を複製</button><button class="btn btn-danger btn-sm" onclick="deleteSm('${biz}','${qno}')">削除（削除候補へ）</button>`}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${s.deleteFlag?`<button class="btn btn-ghost btn-sm" onclick="shRowOp('restore')">復元</button><button class="btn btn-danger btn-sm" onclick="shRowOp('purge')">完全削除</button>`:`<button class="btn btn-ghost btn-sm" onclick="shRowOp('dup')">この行を複製</button><button class="btn btn-danger btn-sm" onclick="shRowOp('del')">削除（削除候補へ）</button>`}</div>
     <div class="muted" style="font-size:11px;margin-top:8px">最終更新：${s.updatedAt?escHtml(new Date(s.updatedAt).toLocaleString('ja-JP')):'—'}／出所：${s.source==='app'?'アプリ':'Excel取込'}</div>`;
   p.querySelectorAll('[data-ci]').forEach(el=>{el.addEventListener('change',()=>{const c=SH.cols[+el.dataset.ci];shApply([{s,c,v:el.value}],{fromPanel:true});});});
   const ts=p.querySelector('#shType');ts.onchange=()=>{
@@ -1417,7 +1426,8 @@ function shInit(){
 }
 
 /* ===== 施策管理タブ F2: アプリ内CRUD ===== */
-function nextShisakuNo(biz){DATA.shisakuNoSeq=DATA.shisakuNoSeq||{};const existing=(DATA.shisaku[biz]||[]).map(s=>{const m=String(s.no||'').match(new RegExp('^'+biz+'-(\\d+)$'));return m?parseInt(m[1],10):0;});const maxExisting=existing.length?Math.max(...existing):0;const n=Math.max(DATA.shisakuNoSeq[biz]||0,maxExisting)+1;DATA.shisakuNoSeq[biz]=n;return biz+'-'+String(n).padStart(3,'0');}
+/* 新しいNo.：その事業の数字のNo.の最大値＋1（Excelと同じ数字の連番。事業はシート／事業タブで区別する） */
+function nextShisakuNo(biz){const nums=(DATA.shisaku[biz]||[]).map(s=>{const v=String(s.no==null?'':s.no).trim();return /^\d+$/.test(v)?parseInt(v,10):0;});const n=(nums.length?Math.max(...nums):0)+1;DATA.shisakuNoSeq=DATA.shisakuNoSeq||{};DATA.shisakuNoSeq[biz]=n;return String(n);}
 function fillDatalist(id,vals){document.getElementById(id).innerHTML=(vals||[]).map(v=>`<option value="${escHtml(v)}">`).join('');}
 function seKpiRowHtml(k){k=k||{kpi:'',goal:'',actual:''};return `<div class="se-kpi-row" style="display:flex;gap:6px;margin-bottom:6px"><input type="text" class="se-kpi" placeholder="KPI" value="${escHtml(k.kpi||'')}" list="mKpiItems" style="flex:2"><input type="text" class="se-goal" placeholder="目標" value="${escHtml(k.goal||'')}" style="flex:1"><input type="text" class="se-actual" placeholder="実績" value="${escHtml(k.actual||'')}" style="flex:1"><button class="btn btn-danger btn-sm" onclick="this.closest('.se-kpi-row').remove()">✕</button></div>`;}
 function addSeKpiRow(k){document.getElementById('seKpiSets').insertAdjacentHTML('beforeend',seKpiRowHtml(k));}
@@ -1511,13 +1521,13 @@ function deleteSm(biz,no){
   markUnsaved();renderAll();toast('削除候補にしました');
 }
 function restoreSm(biz,no){
-  const s=(DATA.shisaku[biz]||[]).find(x=>String(x.no)===String(no));if(!s)return;
+  const s=(DATA.shisaku[biz]||[]).find(x=>String(x.no)===String(no)&&x.deleteFlag);if(!s)return;
   s.deleteFlag=false;s.updatedAt=new Date().toISOString();
   markUnsaved();renderAll();toast('復元しました');
 }
 function purgeSm(biz,no){
   if(!confirm(biz+' No.'+no+' を完全に削除します。元に戻せません。よろしいですか？'))return;
-  DATA.shisaku[biz]=(DATA.shisaku[biz]||[]).filter(x=>String(x.no)!==String(no));
+  {const arr=DATA.shisaku[biz]||[];const i=arr.findIndex(x=>String(x.no)===String(no)&&x.deleteFlag);if(i>=0)arr.splice(i,1);}
   markUnsaved();renderAll();toast('完全に削除しました');
 }
 /* 施策(施策管理表)のステージ：完了=Do完了→Check(検証待ち/検証中)。改善確定のActは施策自体では埋めない（PDCA案の完了で埋める）。 */
@@ -1739,26 +1749,31 @@ function mergeShisakuImport(biz,importedRecs){
   DATA.shisaku[biz]=DATA.shisaku[biz]||[];
   const current=DATA.shisaku[biz];
   const lastImportAt=(DATA.shisakuLastImport||{})[biz]||null;
-  const curByNo=new Map(current.map(s=>[String(s.no),s]));
+  /* No.が重複していても別の行として扱う：「No.＋同じNo.の何件目か」で突き合わせる（例：5が2行あれば 5#1・5#2） */
+  const occKeys=list=>{const cnt={};return list.map(s=>{const n=String(s.no);cnt[n]=(cnt[n]||0)+1;return n+'#'+cnt[n];});};
+  const curKeys=occKeys(current),impKeys=occKeys(importedRecs);
+  const curByNo=new Map(current.map((s,i)=>[curKeys[i],s]));
   const result=[];const conflicts=[];const seen=new Set();
-  importedRecs.forEach(imp=>{
-    const no=String(imp.no);seen.add(no);
-    const cur=curByNo.get(no);
+  importedRecs.forEach((imp,ii)=>{
+    const key=impKeys[ii];seen.add(key);
+    const cur=curByNo.get(key);
     if(!cur){result.push(Object.assign({},imp,{source:'excel'}));return;}
     if(shisakuContentEqual(cur,imp)){result.push(cur);return;}
     const appEditedSinceImport=cur.source==='app'||(cur.updatedAt&&(!lastImportAt||cur.updatedAt>lastImportAt));
-    if(appEditedSinceImport){conflicts.push({biz,no,excel:imp,app:cur});result.push(cur);}
-    else{result.push(Object.assign({},imp,{source:'excel'}));}
+    if(appEditedSinceImport){conflicts.push({biz,no:imp.no,excel:imp,app:cur});result.push(cur);}
+    else{result.push(Object.assign({},imp,{source:'excel'},shisakuAppOnly(cur)));}
   });
-  current.forEach(cur=>{
-    const no=String(cur.no);
-    if(seen.has(no)){return;}
+  current.forEach((cur,ci)=>{
+    if(seen.has(curKeys[ci])){return;}
     if(cur.source==='app'||cur.deleteFlag){result.push(cur);return;}
     result.push(Object.assign({},cur,{deleteFlag:true,updatedAt:new Date().toISOString()}));
   });
   DATA.shisaku[biz]=result;
   return conflicts;
 }
+/* Excelにない、アプリだけで持つ項目（Excel版で置き換えても消さない） */
+const SHISAKU_APP_ONLY_KEYS=['shisakuType'];
+function shisakuAppOnly(rec){const o={};if(rec)SHISAKU_APP_ONLY_KEYS.forEach(k=>{if(rec[k]!=null)o[k]=rec[k];});return o;}
 let PENDING_CONFLICTS=[];
 function kpiSetsKey(rec){const a=(rec.kpiSets||[]).map(x=>[x.kpi||null,x.goal||null,x.actual||null,x.actualExtra||null]);while(a.length&&a[a.length-1].every(v=>v==null))a.pop();return JSON.stringify(a);}
 function openConflictModal(conflicts,onDoneMsg){
@@ -1804,9 +1819,9 @@ function applyConflictResolutions(){
   const now=new Date().toISOString();
   PENDING_CONFLICTS.forEach(c=>{
     const arr=DATA.shisaku[c.biz]||[];
-    const idx=arr.findIndex(x=>String(x.no)===String(c.no));
+    let idx=arr.indexOf(c.app);if(idx<0)idx=arr.findIndex(x=>String(x.no)===String(c.no));
     if(idx<0)return;
-    if(c.choice==='excel'){arr[idx]=Object.assign({},c.excel,{source:'excel'});}
+    if(c.choice==='excel'){arr[idx]=Object.assign({},c.excel,{source:'excel'},shisakuAppOnly(c.app));}
     else if(c.choice==='app'){arr[idx]=Object.assign({},c.app,{updatedAt:now});}
     else if(c.choice==='merge'){
       const merged=Object.assign({},c.app);
