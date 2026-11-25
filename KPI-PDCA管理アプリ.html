@@ -1719,7 +1719,7 @@ function mergeShisakuImport(biz,importedRecs){
   return conflicts;
 }
 /* Excelにない、アプリだけで持つ項目（Excel版で置き換えても消さない） */
-const SHISAKU_APP_ONLY_KEYS=['shisakuType','originId','targetUrl','verifyKind','baseVal','verifyVal','verifyDate','judge','nextAct','cycleNo','parentNo','proposedFrom','proposedDate','evidence','evidenceLevel','adopt','adoptReason','adoptDate','adoptBy'];
+const SHISAKU_APP_ONLY_KEYS=['shisakuType','originId','targetUrl','verifyKind','baseVal','verifyVal','verifyDate','judge','nextAct','cycleNo','parentNo','proposedFrom','proposedDate','evidence','evidenceLevel','adopt','adoptReason','adoptDate','adoptBy','candAt','candVer'];
 function shisakuAppOnly(rec){const o={};if(rec)SHISAKU_APP_ONLY_KEYS.forEach(k=>{if(rec[k]!=null)o[k]=rec[k];});return o;}
 let PENDING_CONFLICTS=[];
 function kpiSetsKey(rec){const a=(rec.kpiSets||[]).map(x=>[x.kpi||null,x.goal||null,x.actual||null,x.actualExtra||null]);while(a.length&&a[a.length-1].every(v=>v==null))a.pop();return JSON.stringify(a);}
@@ -1986,29 +1986,50 @@ function closeBackupModal(){document.getElementById('backupModal').classList.rem
 const CAND_FIELDS=['originId','daibunrui','method','cat','mokuteki','naiyo','tanto','check','verifyKind','shisakuType','parentNo','cycleNo','kanren','proposedFrom','proposedDate','evidence','evidenceLevel'];
 let CAND_LOADING=false,CAND_ARMED=false,CAND_LAST='',CAND_MISSING=false;
 async function getCandDir(h){try{const d=await h.getDirectoryHandle('data');return await d.getDirectoryHandle('candidates');}catch(e){return null;}}
-function candToRow(biz,c){
-  const s={no:nextShisakuNo(biz),source:'app',status:'候補',updatedAt:new Date().toISOString()};
+function candToRow(biz,c,ver){
+  const now=new Date().toISOString();
+  const s={no:nextShisakuNo(biz),source:'app',status:'候補',updatedAt:now,candAt:now,candVer:ver||''};
   CAND_FIELDS.forEach(k=>{const v=c[k];if(v!=null&&String(v).trim()!=='')s[k]=String(v);});
   if(!s.proposedFrom)s.proposedFrom='AI分析';
   return s;
 }
+/* 人がまだ手を付けていない候補か（採否・削除をしていない。読み込み後に編集していない）。古い版の行（candAt なし）は、採否の記録が無ければ未編集とみなす */
+function candUntouched(r){return r.status==='候補'&&!r.adopt&&!r.adoptReason&&!r.deleteFlag&&(!r.candAt||r.updatedAt===r.candAt);}
 /* 候補ファイル（JSON）の中身を DATA.shisaku に追加する（共通）。docs＝候補ファイルの配列 */
 function mergeCandidateDocs(docs){
   if(!DATA.candidateSeen||typeof DATA.candidateSeen!=='object')DATA.candidateSeen={};
   const d=new Date(),today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  const byBiz={};let added=0,dup=0,bad=0;
+  const byBiz={},loaded={};let added=0,dup=0,bad=0,refreshed=0,removed=0;
   for(const j of docs){
     if(!j||j.kind!=='candidates'||!Array.isArray(j.candidates)){bad++;continue;}
+    const ver=String(j.generatedAt||'');
     for(const c of j.candidates){
       const biz=String(c.biz||j.biz||'').toUpperCase();
       if(!SHEET_BIZ.includes(biz)||!c.originId||!String(c.naiyo||'').trim()){bad++;continue;}
+      (loaded[biz]=loaded[biz]||new Set()).add(c.originId);
       const arr=DATA.shisaku[biz]=DATA.shisaku[biz]||[];
-      if(DATA.candidateSeen[c.originId]||arr.some(x=>x.originId===c.originId)){dup++;continue;}
-      arr.push(candToRow(biz,c));DATA.candidateSeen[c.originId]=today;byBiz[biz]=(byBiz[biz]||0)+1;added++;
+      const ex=arr.find(x=>x.originId===c.originId);
+      if(ex){
+        /* すでにある候補：人が手を付けていなければ、候補ファイルの最新の内容に更新する（AI分析をやり直したとき用）。採否・編集をした行は変えない */
+        if(candUntouched(ex)&&ex.candVer!==ver){
+          CAND_FIELDS.forEach(k=>{const v=c[k];if(v!=null&&String(v).trim()!=='')ex[k]=String(v);else delete ex[k];});
+          if(!ex.proposedFrom)ex.proposedFrom='AI分析';
+          ex.updatedAt=new Date().toISOString();ex.candAt=ex.updatedAt;ex.candVer=ver;refreshed++;
+        }else dup++;
+        continue;
+      }
+      if(DATA.candidateSeen[c.originId]){dup++;continue;}
+      arr.push(candToRow(biz,c,ver));DATA.candidateSeen[c.originId]=today;byBiz[biz]=(byBiz[biz]||0)+1;added++;
     }
   }
-  if(added){markUnsaved();try{renderAll();}catch(e){}}
-  return {added,dup,bad,files:docs.length,byBiz};
+  /* 候補ファイルから無くなった候補（AI分析のやり直しで取り下げたもの）：人が手を付けていなければ「削除候補」にする（復元できる） */
+  for(const biz in loaded){
+    (DATA.shisaku[biz]||[]).forEach(r=>{
+      if(r.originId&&/^AI-/.test(r.originId)&&!loaded[biz].has(r.originId)&&candUntouched(r)){r.deleteFlag=true;r.updatedAt=new Date().toISOString();removed++;}
+    });
+  }
+  if(added||refreshed||removed){markUnsaved();try{renderAll();}catch(e){}}
+  return {added,dup,bad,refreshed,removed,files:docs.length,byBiz};
 }
 /* 方法1（標準）：HTMLと同じ場所の data/candidates/candidates.js（全候補ファイルをまとめた索引）を <script> で読む。
    フォルダの許可は不要で、ダブルクリックで開いても（Box・git のどちらでも）動く */
@@ -2045,9 +2066,13 @@ function reportCandidates(r){
   if(!r)return;
   if(r.via==='index')CAND_MISSING=!!r.skipped;
   if(r.bad)console.warn('候補ファイルで読めなかった項目：'+r.bad+'件');
-  if(r.added){
-    const t=Object.keys(r.byBiz).map(b=>b+' '+r.byBiz[b]+'件').join('／');
-    CAND_LAST='AI分析の候補を'+r.added+'件追加しました（'+t+'）';
+  if(r.added||r.refreshed||r.removed){
+    const t=Object.keys(r.byBiz||{}).map(b=>b+' '+r.byBiz[b]+'件').join('／');
+    const parts=[];
+    if(r.added)parts.push(r.added+'件追加（'+t+'）');
+    if(r.refreshed)parts.push(r.refreshed+'件を最新の内容に更新');
+    if(r.removed)parts.push(r.removed+'件を取り下げ（削除候補）');
+    CAND_LAST='AI分析の候補：'+parts.join('、');
     toast(CAND_LAST+'。「⏳ 採否待ち」で確認できます');
   }
   try{shUpdateStatus();}catch(e){}
