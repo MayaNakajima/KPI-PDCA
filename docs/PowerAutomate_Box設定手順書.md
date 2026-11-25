@@ -1,5 +1,7 @@
 # Power Automate ＋ Box 設定手順書（バックアップ／Teams通知）
 
+> **【旧設計・使いません（2026-11-25）】** 通知・バックアップは Power Automate を使わず、中島さんPCのバッチ＋Teamsの「ワークフロー」で行う方針に変わりました（`docs/共通引継ぎプロンプト_PDCA仕組み化.md` rev.5、`batch/README.md`）。この文書は参考として残しています。
+
 対象：KPI・PDCA管理アプリのスケジュール実行（週次/月次バックアップ・毎朝A/週次B通知）／作成：2026-07-29
 前提：**Power Automate（Mayaさんの個人アカウント接続）／Flow botとして投稿（Workflows名義）／Boxコネクタ**。Azureアプリ登録・Graph権限は不要。
 
