@@ -2101,7 +2101,7 @@ async function autoLoadCandidates(){
   const go=async()=>{document.removeEventListener('pointerdown',go,true);document.removeEventListener('keydown',go,true);CAND_ARMED=false;reportCandidates(await loadCandidates(true));};
   document.addEventListener('pointerdown',go,true);document.addEventListener('keydown',go,true);
 }
-/* ===== 通知・バックアップ設定（アプリ内。共有JSONに保存しPower Automateが参照） ===== */
+/* ===== 通知・バックアップ設定（アプリ内。共有JSONに保存し、バッチ（中島さんPC）が参照） ===== */
 const NOTIFY_CHANNELS_SEED={UN:'19:b9b003d50e934d0980196edbf8d87fa8@thread.tacv2',SCH:'19:70c6bedf33e04bc3ba7c44ab91bb7536@thread.tacv2',MED:'19:3a5426e0882044559c35a6f60fbea769@thread.tacv2',IS:'19:CwI8Z1OFzaWCyjj0p5vdKsZq5-aaCWVTTbWM4aZQIDY1@thread.tacv2'};
 function ensureNotifyConfig(){
   if(!DATA.notifyConfig)DATA.notifyConfig={enabled:true,typeA:{enabled:true,time:'09:00'},typeB:{enabled:true,weekday:'Mon',time:'10:00'},triggers:{checkSoonDays:2,actualMissingAfterDays:2,notStartedOverdue:true},webhookTestUrl:''};
@@ -2182,10 +2182,10 @@ function previewNotify(type){ensureNotifyConfig();const biz=ST.biz;const card=bu
   if(type==='A'){const names=new Set();const warns=new Set();tgs.forEach(t=>{const r=resolveRecipients(t.tanto);r.to.forEach(p=>names.add(p.name||p.upn||p.id));if(r.warn)warns.add(r.warn);});recTxt='宛先(本人＋マネージャー)：'+([...names].join('、')||'—')+(warns.size?('　⚠ '+[...warns].join(' / ')):'');}
   else{recTxt='投稿先：'+((biz==='ALL')?'各事業チャネル':(DATA.channels[biz]||'(チャネル未設定)'));}
   document.getElementById('ncPreview').innerHTML='<div class="muted" style="font-size:11px;margin-bottom:4px">'+escHtml(recTxt)+'</div><pre style="white-space:pre-wrap;font-size:11px;background:#f8fafc;padding:8px;border-radius:6px;max-height:240px;overflow:auto">'+escHtml(JSON.stringify(card,null,2))+'</pre>';}
-async function testNotify(type){ensureNotifyConfig();const url=DATA.notifyConfig.webhookTestUrl;if(!url){alert('テスト送信先URL（Power AutomateのHTTP要求トリガーURL）を⑦に入力してください。');return;}
+async function testNotify(type){ensureNotifyConfig();const url=DATA.notifyConfig.webhookTestUrl;if(!url){alert('テスト送信先URL（TeamsのワークフローのWebhook URL）を⑦に入力してください。');return;}
   const payload={type:type,biz:ST.biz,card:buildAdaptiveCard(type,ST.biz)};
   try{const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});toast('テスト送信しました（HTTP '+res.status+'）');}
-  catch(e){alert('テスト送信に失敗しました：'+e.message+'\nURLとPower Automate側の受信設定をご確認ください。');}}
+  catch(e){alert('テスト送信に失敗しました：'+e.message+'\nURLとTeamsのワークフロー側の受信設定をご確認ください。');}}
 function openNotifyModal(){ensureNotifyConfig();renderNotifyModal();document.getElementById('notifyModal').classList.add('on');}
 function closeNotifyModal(){document.getElementById('notifyModal').classList.remove('on');}
 function renderNotifyModal(){ensureNotifyConfig();const nc=DATA.notifyConfig,bc=DATA.backupConfig,hd=DATA.holidays;
@@ -2230,12 +2230,12 @@ function renderNotifyModal(){ensureNotifyConfig();const nc=DATA.notifyConfig,bc=
      <div style="margin-top:6px">${holRows}</div>
      ${(hd.companyDays||[]).length?`<div style="margin-top:4px"><button class="btn btn-danger btn-sm" onclick="clearHolidays()">すべて削除</button></div>`:''}</div>
    <div class="nc-sec"><b>⑥ バックアップ世代</b>
-     <div style="font-size:12px">更新+週次(rolling) <input type="number" value="${bc.rollingKeep}" onchange="setBackupKeep('rollingKeep',this.value)" style="width:56px"> 世代／月次(monthly) <input type="number" value="${bc.monthlyKeep}" onchange="setBackupKeep('monthlyKeep',this.value)" style="width:56px"> 世代<div class="muted" style="margin-top:4px">スケジュール：週次=月9:30／月次=1日9:30（祝日は翌営業日）。実行はPower Automate。</div></div></div>
+     <div style="font-size:12px">更新+週次(rolling) <input type="number" value="${bc.rollingKeep}" onchange="setBackupKeep('rollingKeep',this.value)" style="width:56px"> 世代／月次(monthly) <input type="number" value="${bc.monthlyKeep}" onchange="setBackupKeep('monthlyKeep',this.value)" style="width:56px"> 世代<div class="muted" style="margin-top:4px">スケジュール：週次=月9:30／月次=1日9:30（祝日は翌営業日）。実行は中島さんPCのバッチ。</div></div></div>
    <div class="nc-sec"><b>⑦ 通知テスト・プレビュー</b>
-     <div style="margin:2px 0 6px">テスト送信先URL：<input value="${escHtml(nc.webhookTestUrl||'')}" onchange="setWebhookUrl(this.value)" placeholder="Power AutomateのHTTPトリガーURL" style="width:330px"></div>
+     <div style="margin:2px 0 6px">テスト送信先URL：<input value="${escHtml(nc.webhookTestUrl||'')}" onchange="setWebhookUrl(this.value)" placeholder="TeamsのワークフローのWebhook URL" style="width:330px"></div>
      <div class="chk-row"><button class="btn btn-ghost btn-sm" onclick="previewNotify('A')">A プレビュー</button><button class="btn btn-ghost btn-sm" onclick="previewNotify('B')">B プレビュー</button><button class="btn btn-primary btn-sm" onclick="testNotify('A')">A テスト送信</button><button class="btn btn-primary btn-sm" onclick="testNotify('B')">B テスト送信</button></div>
      <div id="ncPreview" style="margin-top:8px"></div>
-     <div class="muted" style="font-size:11px;margin-top:6px">プレビューは現在選択中の事業（${ST.biz==='ALL'?'全社':ST.biz}）の対象施策で生成。設定は「保存(JSON)」で共有され、Power Automateが参照します。</div></div>`;
+     <div class="muted" style="font-size:11px;margin-top:6px">プレビューは現在選択中の事業（${ST.biz==='ALL'?'全社':ST.biz}）の対象施策で生成。設定は「保存(JSON)」で共有され、バッチ（中島さんPC）が参照します。</div></div>`;
   /* 再描画後もスクロール位置を維持 */
   if(ncBody){ncBody.scrollTop=ncScrollTop;const nw=ncBody.querySelectorAll('.tbl-wrap');ncWrapTops.forEach((v,i)=>{if(nw[i])nw[i].scrollTop=v;});}
 }
