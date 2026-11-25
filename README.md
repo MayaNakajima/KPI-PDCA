@@ -14,7 +14,20 @@ KPIツリーとPDCAを一体で管理するシングルHTMLアプリです。ブ
 | ファイル / フォルダ | 内容 |
 |---|---|
 | `KPI-PDCA管理アプリ.html` | アプリ本体（UI・ロジック・データを1ファイルに内包） |
+| `data/` | `kpi_pdca_data.json`（保存(JSON)の既定の保存先。git管理外）／**`candidates/`＝AI分析の候補ファイル**（`candidates_<事業>_<日付>.json` と、まとめた索引 `candidates.js`。アプリが開いたとき自動で読み込む。gitに置く） |
+| `ai_analysis/` | AI分析：集計表の作成（`build_ai_input.py`）、候補ファイルの作成（`make_candidates*.py`・`candidates_lib.py`）、Word資料の作成（`make_*_docx.py`）、`input/`（AIに渡す集計表。個人情報なし） |
+| `apps_script/` | DSPダッシュボード用 GA4＋GSC 取得スクリプトへの追加分（エンゲージメント・直帰率）と手順 |
+| `docs/` | 仕様書・設計・引継ぎ資料・確認資料 |
 | `00_data`（リポジトリ外） | データの元となるExcel（施策管理表・KPIツリーなど。実績.xlsm は社内ドキュメント）。上の「データ置き場」参照 |
+
+### フォルダの構成（git・ローカル・Box で同じ）
+
+このリポジトリ（GitHub）、ローカルの複製（`C:\Users\612316\Documents\GitHub\KPI-PDCA`）、Box の運用フォルダ（`生成AI\KPI-PDCA`）は、**同じ構成・同じ中身**にそろえます。違いが出るのは、gitに置かない次のものだけです。
+- `data/kpi_pdca_data.json`・`backup/`（利用者のデータ。保存(JSON)が作る）
+- 入力データ（`00_data`／`10_data`／社内ドキュメントの実績.xlsm など。個人情報を含む）
+- `.claude/`（個人の設定）
+
+更新の手順：ローカルで開発 → コミット → main へマージ → push → **Box の運用フォルダで `git pull`**（Boxのフォルダも同じリポジトリの複製）。Box のファイルを直接編集しない。
 
 ## 画面（タブ）
 
