@@ -158,6 +158,7 @@ table.sh thead th.rn{z-index:5}
 .sh-fs span{padding:3px 9px;cursor:pointer;border-left:1px solid var(--border)}.sh-fs span.on{background:var(--navy);color:#fff}
 .sh-frz{font-size:11px;color:var(--muted);display:inline-flex;align-items:center;gap:4px}
 .sh-frz select{font-size:11px;padding:2px 4px}
+table.sh td.warn{background:#fef3c7}
 table.sh td.sel{background:#dce7f5}
 table.sh td.act{box-shadow:inset 0 0 0 2px #217346;background:#fff}
 table.sh th.hl{background:#d3d3d3!important;color:#217346;font-weight:bold}
@@ -1020,6 +1021,7 @@ const SH_NEW=[
  {label:'出所',f:'proposedFrom',t:'list',w:11,grp:'pdca',opts:['PDCA記録','手動','GEO','ROI','DSP','AI分析','AI次の一手']},
  {label:'提案日',f:'proposedDate',t:'date',w:12,grp:'pdca'},
  {label:'根拠',f:'evidence',t:'long',w:30,grp:'pdca'},
+ {label:'根拠の強さ',f:'evidenceLevel',t:'list',w:16,grp:'pdca',opts:['十分','弱い：件数が少ない','弱い：データが古い','弱い：その他']},
  {label:'採否',f:'adopt',t:'text',w:8,grp:'adopt',ro:true},
  {label:'採否の理由',f:'adoptReason',t:'long',w:28,grp:'adopt',ro:true},
  {label:'決定日',f:'adoptDate',t:'date',w:12,grp:'adopt',ro:true},
@@ -1092,7 +1094,9 @@ function shBuildRows(){
 function shCellHtml(s,c,ci,ri){
   const d=shDisp(c,shGet(s,c.f));let inner=escHtml(d);
   if(c.t==='url'&&d){const u=safeUrl(d);if(u)inner=`<a class="sh-link" href="${escHtml(u)}" target="_blank" rel="noopener" onmousedown="event.stopPropagation()">${escHtml(d)}</a>`;}
-  return `<td class="${ci===0?'c0':''}${c.ro?' ro':''}${s.deleteFlag?' del':''}" data-r="${ri}" data-c="${ci}"${d.length>8?` title="${escHtml(d)}"`:''}>${inner}</td>`;
+  /* 候補で「根拠」が空、または「根拠の強さ」が弱い → 黄色で目立たせる */
+  const warn=(c.f==='evidence'&&s.status==='候補'&&!String(s.evidence||'').trim())||(c.f==='evidenceLevel'&&String(s.evidenceLevel||'').startsWith('弱い'));
+  return `<td class="${ci===0?'c0':''}${c.ro?' ro':''}${warn?' warn':''}${s.deleteFlag?' del':''}" data-r="${ri}" data-c="${ci}"${d.length>8?` title="${escHtml(d)}"`:''}>${inner}</td>`;
 }
 function renderShisakuSheet(keepRows){
   if(!SH.inited)shInit();
@@ -1208,7 +1212,7 @@ function shRefreshCell(s,c){
   const ri=SH.rows.indexOf(s),ci=SH.cols.indexOf(c);if(ri<0||ci<0)return;
   const el=shCell(ri,ci);if(!el)return;
   const tmp=document.createElement('table');tmp.innerHTML='<tbody><tr>'+shCellHtml(s,c,ci,ri)+'</tr></tbody>';
-  const nt=tmp.rows[0].cells[0];el.innerHTML=nt.innerHTML;if(nt.title)el.title=nt.title;else el.removeAttribute('title');
+  const nt=tmp.rows[0].cells[0];el.innerHTML=nt.innerHTML;el.classList.toggle('warn',nt.classList.contains('warn'));if(nt.title)el.title=nt.title;else el.removeAttribute('title');
 }
 /* changes:[{s,c,v}]。opts.fromPanel=true のときは詳細パネルを描き直さない（入力中のフォーカスを保つ） */
 function shApply(changes,opts){
@@ -1403,6 +1407,7 @@ function shRenderPanel(){
     else inp=`<input data-ci="${ci}" value="${escHtml(v)}">`;
     if(c.ro)inp=`<div class="sh-ro">${escHtml(shDisp(c,v))||'—'}</div>`;
     const u=c.t==='url'?safeUrl(v):null;
+    if(c.f==='evidence')inp+=`<div class="muted" style="font-size:10px;margin-top:2px">元の数字・期間・件数・出どころを書く（例：GEO 2026-11-04 業者推薦型 出現率0%（8/8件で非出現））。採用には必須です</div>`;
     return `<label>${c.L}　${escHtml(c.label.replace(/\n.*$/s,'').replace(/\n/g,''))}</label><div>${inp}${u?`<div style="margin-top:2px"><a href="${escHtml(u)}" target="_blank" rel="noopener">Backlogを開く ↗</a></div>`:''}</div>`;
   };
   const grp=(title,bg,from,to)=>`<div class="sh-psec" style="background:${bg}">${title}</div><div class="sh-pf">${SH.cols.map((c,ci)=>(ci>=from&&ci<=to)?fieldHtml(c,ci):'').join('')}</div>`;
@@ -1410,6 +1415,8 @@ function shRenderPanel(){
   const isCand=s.status==='候補';
   let adBy='';try{adBy=localStorage.getItem('smAdoptBy')||'';}catch(e){}
   const adoptHtml=`${grpF('採否'+(isCand?'（採否待ち）':''),'#FDE68A',c=>c.grp==='adopt')}
+    ${isCand&&!String(s.evidence||'').trim()?'<div style="margin-top:6px;padding:4px 6px;background:#fef3c7;border-radius:4px;font-size:11px">⚠ 「根拠」が未記入です。元の数字・期間・件数・出どころを書かないと採用できません。</div>':''}
+    ${isCand&&String(s.evidenceLevel||'').startsWith('弱い')?`<div style="margin-top:6px;padding:4px 6px;background:#fef3c7;border-radius:4px;font-size:11px">⚠ 根拠が弱い候補です（${escHtml(s.evidenceLevel)}）。採用する前に根拠を確認してください。</div>`:''}
     ${isCand?`<div class="sh-pf" style="margin-top:6px"><label>理由（必須）</label><div><textarea id="shAdReason" rows="3" placeholder="採用・非採用・保留の理由"></textarea></div><label>決定者</label><div><input id="shAdBy" value="${escHtml(adBy)}" placeholder="お名前"></div></div>
     <div style="display:flex;gap:6px;margin-top:6px"><button class="btn btn-green btn-sm" onclick="shAdopt('採用')">採用</button><button class="btn btn-danger btn-sm" onclick="shAdopt('非採用')">非採用</button><button class="btn btn-ghost btn-sm" onclick="shAdopt('保留')">保留</button></div>
     <div class="muted" style="font-size:11px;margin-top:4px">採用＝状態が「未着手」になり標準のシートに載ります／非採用＝行は消さず、記録を残して状態を「完了」にします／保留＝採否待ちに残ります</div>`
@@ -1444,6 +1451,11 @@ function shAdopt(kind){
   const reset=kind==='reset';
   const reason=reasonEl?reasonEl.value.trim():'',by=byEl?byEl.value.trim():'';
   if(!reset&&!reason){toast('理由を入力してください（採否には理由が必要です）');if(reasonEl)reasonEl.focus();return;}
+  /* 妥当性の担保：採用するには「根拠」（元の数字・期間・件数・出どころ）が必要。根拠が弱い候補は確認してから採用する */
+  if(kind==='採用'){
+    if(!String(s.evidence||'').trim()){toast('「根拠」が空です。元の数字・期間・件数・出どころを書いてから採用してください');return;}
+    if(String(s.evidenceLevel||'').startsWith('弱い')&&!confirm('この候補は根拠が弱い（'+s.evidenceLevel+'）と記載されています。このまま採用しますか？'))return;
+  }
   if(reset&&!confirm('採否をやり直して「候補」に戻しますか？（採否の記録は消えます）'))return;
   if(!reset){try{localStorage.setItem('smAdoptBy',by);}catch(e){}}
   const d=new Date(),today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -1792,7 +1804,7 @@ function savePdca(){const b=curBiz();const __ki=document.getElementById('pKpiSel
     const oid='PDCA-'+rec.id;
     if(!(DATA.shisaku[b]||[]).some(x=>x.originId===oid)){
       const par=(DATA.shisaku[b]||[]).find(x=>String(x.no)===String(rec.baseNo));
-      addedCand=shNewCandidate(b,{naiyo:rec.successorName,mokuteki:rec.issue||null,evidence:[rec.issue?('課題：'+rec.issue):'',rec.act?('改善案：'+rec.act):''].filter(Boolean).join('\n')||null,proposedFrom:'PDCA記録',originId:oid,parentNo:rec.baseNo||null,kanren:rec.baseNo||null,cycleNo:par?String((parseInt(par.cycleNo,10)||1)+1):null,cat:rec.cat||null,tanto:rec.owner||null,check:rec.due||null,verifyKind:rec.kpi||null});
+      addedCand=shNewCandidate(b,{naiyo:rec.successorName,mokuteki:rec.issue||null,evidence:['出どころ：PDCA記録 '+rec.date+(rec.baseNo?'（基施策No.'+rec.baseNo+'）':''),rec.kpi?('対象KPI：'+rec.kpi+(rec.baseVal?'／元の結果：'+rec.baseVal:'')):'',rec.issue?('課題：'+rec.issue):'',rec.act?('改善案：'+rec.act):''].filter(Boolean).join('\n'),evidenceLevel:(rec.baseVal?null:'弱い：その他'),proposedFrom:'PDCA記録',originId:oid,parentNo:rec.baseNo||null,kanren:rec.baseNo||null,cycleNo:par?String((parseInt(par.cycleNo,10)||1)+1):null,cat:rec.cat||null,tanto:rec.owner||null,check:rec.due||null,verifyKind:rec.kpi||null});
     }
   }
   if(ST.editId){const i=DATA.pdca.findIndex(p=>p.id===ST.editId);if(i>=0)DATA.pdca[i]=rec;}else DATA.pdca.push(rec);
@@ -1898,7 +1910,7 @@ function mergeShisakuImport(biz,importedRecs){
   return conflicts;
 }
 /* Excelにない、アプリだけで持つ項目（Excel版で置き換えても消さない） */
-const SHISAKU_APP_ONLY_KEYS=['shisakuType','originId','targetUrl','verifyKind','baseVal','verifyVal','verifyDate','judge','nextAct','cycleNo','parentNo','proposedFrom','proposedDate','evidence','adopt','adoptReason','adoptDate','adoptBy'];
+const SHISAKU_APP_ONLY_KEYS=['shisakuType','originId','targetUrl','verifyKind','baseVal','verifyVal','verifyDate','judge','nextAct','cycleNo','parentNo','proposedFrom','proposedDate','evidence','evidenceLevel','adopt','adoptReason','adoptDate','adoptBy'];
 function shisakuAppOnly(rec){const o={};if(rec)SHISAKU_APP_ONLY_KEYS.forEach(k=>{if(rec[k]!=null)o[k]=rec[k];});return o;}
 let PENDING_CONFLICTS=[];
 function kpiSetsKey(rec){const a=(rec.kpiSets||[]).map(x=>[x.kpi||null,x.goal||null,x.actual||null,x.actualExtra||null]);while(a.length&&a[a.length-1].every(v=>v==null))a.pop();return JSON.stringify(a);}
