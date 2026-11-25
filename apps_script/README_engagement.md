@@ -8,8 +8,8 @@ DSPダッシュボード用の Apps Script（GA4＋GSC 自動取得）に、**�
 ## 手順（ファイルを丸ごと差し替える）
 1. Apps Script のプロジェクトで、元のスクリプトのファイル（`コード.gs` など、`run_buildJson` が入っているファイル）を開く
 2. 中身を**すべて選択して削除**し、`apps_script/dsp_dashboard_auto.gs` の中身を**全部貼り付ける**（ファイルは1つのまま。ファイルを追加したり、別名のファイルに貼ったりしない）
-3. 保存する。`CONFIG` の値（GA4のプロパティID・GSCのサイト・`driveFolderId` など）は、元のスクリプトと同じ値が入っています。元から変えている場合は、貼り付けたあとに合わせてください
-4. `debug_engagement` を実行 → ログで SCH・IS の月次の直帰率・エンゲージメント時間・DSP流入の値を確認（初回は認証の許可が出る場合あり）
+3. 保存する。（デバイス別を追加した版に更新する場合も、同じ手順で丸ごと貼り替える）`CONFIG` の値（GA4のプロパティID・GSCのサイト・`driveFolderId` など）は、元のスクリプトと同じ値が入っています。元から変えている場合は、貼り付けたあとに合わせてください
+4. `debug_engagement` を実行 → ログで SCH・IS の月次の直帰率・エンゲージメント時間・DSP流入の値（**端末別＝PC／SPの直帰率**を含む）を確認（初回は認証の許可が出る場合あり）
 5. `run_buildJson` を実行して、エラーが出ないことを確認する（毎朝6時のトリガーは、そのまま動きます。「関数が削除されました」と出ていたトリガーは、関数が戻れば動きます。動かない場合は `setupDailyTrigger` を一度実行して作り直す）
 6. 単独の確認用ファイルが欲しい場合は `run_buildEngagementJson` を実行（ドライブに `dsp_dashboard_engagement.json` が出る）
 
@@ -27,6 +27,8 @@ DSP広告（SCH・IS）の判定項目のうち、いまデータに無かった
 | `channelMonthly` | チャネル別（Display・Organic Search など）の月次 |
 | `dspMonthly` | DSP流入（参照元／メディアに `admatrix` を含む）の月次。**SCH・ISのみ** |
 | `dspLanding` | DSP流入のLP（ランディングページ）別の月次。**SCH・ISのみ** |
+| `deviceMonthly` | デバイス別（`desktop`＝PC／`mobile`＝SP／`tablet`）の月次（サイト全体）。2026-11-25に追加 |
+| `dspDevice` | DSP流入のデバイス別（PC／SP）の月次。**SCH・ISのみ**。PCとSPの予算配分の見直しの効果を、直帰率・エンゲージメント時間で見るために追加（2026-11-25） |
 
 各行の指標：`sessions`／`engagedSessions`／`engagementRate`・`bounceRate`（0〜1）／`engagementSec`（合計）／`avgEngagementSec`（1セッションあたり）／`viewsPerSession`（1セッションあたりの閲覧ページ数）
 
