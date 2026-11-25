@@ -10,6 +10,8 @@ Desktop.ini
 
 # Excelの一時ロックファイル
 ~$*.xls*
+~$*.doc*
+~$*.ppt*
 
 # バックアップ
 *.bak
@@ -22,3 +24,7 @@ backup/
 source-data/
 *実績*.xlsm
 *実績*.xlsx
+
+# Python のキャッシュ
+__pycache__/
+*.pyc
