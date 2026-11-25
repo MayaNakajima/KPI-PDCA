@@ -19,6 +19,7 @@
  * 【2026-11 追加】エンゲージメント（ga4[サイト].engagement）
  *   ・直帰率・エンゲージメント率・エンゲージメント時間・閲覧ページ数（サイト全体／チャネル別の月次）
  *   ・DSP広告（SCH・IS）の流入の月次・LP別の月次 … DSPの判定項目「LPの直帰率の低下」「LPの滞在時間の延長」用
+ *   ・デバイス別（PC＝desktop／SP＝mobile）の月次（サイト全体・DSP流入）… PCとSPの予算配分の見直しの効果を見る用
  *   追加部分はファイル末尾の「▼▼▼ エンゲージメントの追加」にまとめています。
  *   ※「エンゲージメント」「直帰率」は GA4 の指標で、Search Console（GSC）にはありません。
  *   既存の出力項目（daily/channels/sources/aiMonthly/seoMonthly/report/docodoco/gsc）は変更していません。
@@ -556,6 +557,8 @@ function fetchDocodoco_(propertyId, end){
 //    channelMonthly: [{ym, ch:'Display', ...同じ指標}]                                                                                        … チャネル別の月次
 //    dspMonthly:     [{ym, sourceMedium:'admatrix / display', ...}]                                                                           … DSP流入の月次（DSP対象サイトのみ）
 //    dspLanding:     [{ym, page:'/', sourceMedium, ...}]                                                                                      … DSP流入のLP別の月次（DSP対象サイトのみ）
+//    deviceMonthly:  [{ym, device:'desktop'|'mobile'|'tablet', ...同じ指標}]                                                                  … デバイス別（PC／SP）の月次（サイト全体）
+//    dspDevice:      [{ym, device, sourceMedium, ...}]                                                                                        … DSP流入のデバイス別（PC／SP）の月次（DSP対象サイトのみ）
 //  }
 //  指標：sessions＝セッション数／engagedSessions＝エンゲージしたセッション数／engagementRate・bounceRate＝0〜1の割合
 //        engagementSec＝エンゲージメント時間の合計（秒）／avgEngagementSec＝1セッションあたり（秒）／viewsPerSession＝1セッションあたりの閲覧ページ数
@@ -621,7 +624,7 @@ function fetchEngagement_(propertyId, start, end){
   if (!ENGAGEMENT_CONFIG.enabled) return null;
   var prop = 'properties/' + propertyId;
   var range = [{ startDate: start, endDate: end }];
-  var out = { period: start + '〜' + end, monthly: [], channelMonthly: [], dspMonthly: [], dspLanding: [] };
+  var out = { period: start + '〜' + end, monthly: [], channelMonthly: [], dspMonthly: [], dspLanding: [], deviceMonthly: [], dspDevice: [] };
 
   // (1) サイト全体の月次
   out.monthly = engRun_(prop, {
@@ -639,7 +642,17 @@ function fetchEngagement_(propertyId, start, end){
     o.ym = engYm_(row.dimensionValues[0].value); o.ch = row.dimensionValues[1].value; return o;
   });
 
-  // (3)(4) DSP流入（DSP対象サイトのみ）
+  // (2b) デバイス別（PC＝desktop／SP＝mobile／tablet）の月次（サイト全体）
+  try {
+    out.deviceMonthly = engRun_(prop, {
+      dateRanges: range, dimensions: [{ name: 'yearMonth' }, { name: 'deviceCategory' }], metrics: ENG_METRICS
+    }).map(function(row){
+      var o = engMetrics_(row.metricValues);
+      o.ym = engYm_(row.dimensionValues[0].value); o.device = row.dimensionValues[1].value; return o;
+    });
+  } catch(err){ Logger.log('GA4 deviceMonthly失敗 %s: %s', propertyId, err); }
+
+  // (3)(4)(5) DSP流入（DSP対象サイトのみ）
   if (engIsDspProperty_(propertyId)){
     var dspFilter = { filter: { fieldName: 'sessionSourceMedium',
       stringFilter: { matchType: 'PARTIAL_REGEXP', value: ENGAGEMENT_CONFIG.dspSourceMediumRegex, caseSensitive: false } } };
@@ -663,6 +676,17 @@ function fetchEngagement_(propertyId, start, end){
         o.sourceMedium = row.dimensionValues[2].value; return o;
       });
     } catch(err){ Logger.log('GA4 dspLanding失敗 %s: %s', propertyId, err); }
+    try {
+      out.dspDevice = engRun_(prop, {
+        dateRanges: range,
+        dimensions: [{ name: 'yearMonth' }, { name: 'deviceCategory' }, { name: 'sessionSourceMedium' }],
+        metrics: ENG_METRICS, dimensionFilter: dspFilter
+      }).map(function(row){
+        var o = engMetrics_(row.metricValues);
+        o.ym = engYm_(row.dimensionValues[0].value); o.device = row.dimensionValues[1].value;
+        o.sourceMedium = row.dimensionValues[2].value; return o;
+      });
+    } catch(err){ Logger.log('GA4 dspDevice失敗 %s: %s', propertyId, err); }
   }
   return out;
 }
@@ -681,6 +705,11 @@ function debug_engagement(){
     e.dspMonthly.forEach(function(m){
       Logger.log('  DSP %s  %s  セッション%s  エンゲージ率%s%%  直帰率%s%%  平均エンゲージ%s秒  閲覧/セッション%s',
         m.ym, m.sourceMedium, m.sessions, (m.engagementRate * 100).toFixed(1), (m.bounceRate * 100).toFixed(1), m.avgEngagementSec.toFixed(1), m.viewsPerSession.toFixed(2));
+    });
+    e.dspDevice.filter(function(m){ return m.sourceMedium === 'admatrix / display' && m.ym >= '2026/09'; })
+      .sort(function(a, b){ return a.ym < b.ym ? -1 : a.ym > b.ym ? 1 : (a.device < b.device ? -1 : 1); }).forEach(function(m){
+      Logger.log('  DSP端末別 %s  %s  セッション%s  直帰率%s%%  平均エンゲージ%s秒  閲覧/セッション%s',
+        m.ym, m.device, m.sessions, (m.bounceRate * 100).toFixed(1), m.avgEngagementSec.toFixed(1), m.viewsPerSession.toFixed(2));
     });
     var top = e.dspLanding.slice().sort(function(a, b){ return b.sessions - a.sessions; }).slice(0, 5);
     top.forEach(function(m){
