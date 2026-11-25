@@ -162,6 +162,10 @@ table.sh td.sel{background:#dce7f5}
 table.sh td.act{box-shadow:inset 0 0 0 2px #217346;background:#fff}
 table.sh th.hl{background:#d3d3d3!important;color:#217346;font-weight:bold}
 table.sh td.del{color:#999;text-decoration:line-through}
+table.sh td.ro{background:#f1f5f9;color:#475569}
+table.sh td.ro.sel{background:#dce7f5}
+table.sh td.ro.act{background:#f1f5f9}
+.sh-ro{padding:4px 6px;background:#f1f5f9;border-radius:4px;color:#475569;min-height:16px;white-space:pre-wrap;word-break:break-all}
 table.sh a.sh-link{color:#1155cc;text-decoration:underline;cursor:pointer}
 .sh-so{font-size:9px;margin-left:2px}
 .sh-fbtn{position:absolute;right:2px;bottom:2px;width:13px;height:13px;line-height:11px;font-size:9px;background:#fff;color:#333;border:1px solid #888;border-radius:2px;cursor:pointer;text-align:center}
@@ -275,6 +279,7 @@ table.sh a.sh-link{color:#1155cc;text-decoration:underline;cursor:pointer}
       <div class="sh-bar">
         <button class="btn btn-green btn-sm" onclick="shAddRow()">＋行を追加</button>
         <button class="btn btn-ghost btn-sm" id="shPanelBtn" onclick="shTogglePanel()">📄 詳細パネル</button>
+        <button class="btn btn-ghost btn-sm" id="shPendBtn" onclick="shTogglePending()" title="状態が「候補」の行だけを表示／もとのシートに戻す">⏳ 採否待ち（0）</button>
         <button class="btn btn-ghost btn-sm" onclick="shClearSort()">並べ替えを解除</button>
         <button class="btn btn-ghost btn-sm" onclick="shClearFilters()">フィルタをすべて解除</button>
         <span class="sh-fs" id="shFs"><b>文字サイズ</b><span data-fs="s" onclick="shSetFs('s')">S</span><span data-fs="m" onclick="shSetFs('m')">M</span><span data-fs="l" onclick="shSetFs('l')">L</span></span>
@@ -499,7 +504,7 @@ let DATA = JSON.parse(document.getElementById('appData').textContent);
 const SHISAKU_MASTERS_SEED={
  daibunrui:['ブランディング','新規獲得','ナーチャリング'],
  priority:['1','2','3'],
- status:['未着手','検討中','進行中','レビュー中','完了','検証中','保留','中止','遅延'],
+ status:['未着手','検討中','進行中','レビュー中','完了','検証中','保留','中止','遅延','候補'],
  cat:['メルマガ','コラム','実績事例','お知らせ','サイト改善','WP','リスティング','DSP','動画','複合','リアルイベント','分析','LP'],
  method:['オンラインリード獲得 > SEO','オンラインリード獲得 > Webサイト／LP改善','オンラインリード獲得 > CVポイント見直し','オンラインリード獲得 > CV導線見直し','オンラインリード獲得 > KV（キービジュアル）改善','オンラインリード獲得 > キャッチコピー改善','オンラインリード獲得 > 事例追加','オンラインリード獲得 > EFO（入力フォーム最適化）','オンラインリード獲得 > チャットツール導入','オンラインリード獲得 > 動画コンテンツ制作','オンラインリード獲得 > ホワイトペーパー作成','広告出稿 > リスティング広告','広告出稿 > ディスプレイ広告','広告出稿 > Facebook広告','広告出稿 > Instagram広告','広告出稿 > Twitter広告','SNS運用 > 公式アカウント発信','SNS運用 > 個人アカウント発信','SNS運用 > 代表アカウント発信','SNS運用 > インフルエンサー社員活用','SNS運用 > ブログ執筆','外部メディア活用 > 寄稿記事掲載','外部メディア活用 > 外部メディア広告','外部メディア活用 > 導入事例作成','外部メディア活用 > ホワイトペーパー作成','外部メディア活用 > プレスリリース配信','外部メディア活用 > メールDM（フォームDM）','リードナーチャリング > メルマガ配信','リードナーチャリング > ステップメール配信','リードナーチャリング > セミナー開催','リードナーチャリング > 紙DM送付','リードナーチャリング > リターゲティング広告','リードナーチャリング > MAツール導入','その他','ブランディング・認知向上 > Webサイト・デザイン刷新','ブランディング・認知向上 > ガイドライン策定／訴求・ブランドメッセージ改善','ブランディング・認知向上 > SEO','オンラインリード獲得＞施策設計'],
  kpiItems:['インプレッション数 (Impressions)','クリック数 (Clicks)','クリック率 (CTR)','コンバージョン数 (CV)','コンバージョン率 (CVR)','CPC (Cost per Click)','CPM (Cost per Mille)','CPA (Cost per Acquisition)','CPL (Cost per Lead)','CAC (Customer Acquisition Cost)','ROAS (Return on Ad Spend)','ROMI (Return on Marketing Investment)','オーガニックセッション数','検索順位 (Keyword Ranking)','直帰率 (Bounce Rate)','ページ速度スコア','フォーム完了率','フォーム離脱率','チャットエンゲージメント率','メール開封率 (Open Rate)','メールクリック率 (Email CTR)','メール解除率 (Unsubscribe Rate)','事例クリック率','コラムクリック率','CTAクリック率','MQL数 (Marketing Qualified Leads)','SQL数 (Sales Qualified Leads)','パイプライン金額 (Pipeline Value)','受注率 (Win Rate)','リード to MQL率','セミナー登録数','セミナー参加率','ホワイトペーパーDL数','事例ページ PV','ソーシャルフォロワー数','ソーシャルエンゲージメント率','シェア数／リツイート数','ブログ閲覧数','ブログ購読者数','PR掲載件数 (Pick-ups)','ブランド指名検索数','品質スコア (Quality Score)','フリークエンシー (Ad Frequency)','顧客ライフタイムバリュー (LTV)','総ユーザー数','その他','UU数','90%読了率','問合せ数']
@@ -507,6 +512,7 @@ const SHISAKU_MASTERS_SEED={
 function ensureShisakuMasters(){
   if(!DATA.shisakuMasters){DATA.shisakuMasters=JSON.parse(JSON.stringify(SHISAKU_MASTERS_SEED));return;}
   for(const k in SHISAKU_MASTERS_SEED){if(!DATA.shisakuMasters[k])DATA.shisakuMasters[k]=SHISAKU_MASTERS_SEED[k].slice();}
+  if(!DATA.shisakuMasters.status.includes('候補'))DATA.shisakuMasters.status.push('候補');
 }
 function mergeMasterList(key,vals){
   ensureShisakuMasters();
@@ -835,7 +841,7 @@ function smSortClick(key,ev){
   else{if(idx===0&&ST.smSort.length===1)ST.smSort[0].dir*=-1;else ST.smSort=[{key,dir:1}];}
   saveSmPrefs();renderShisakuMgmt();
 }
-function smPillCls(st){const m={'完了':'pill-done','進行中':'pill-prog','保留':'pill-hold','中止':'pill-stop','未着手':'pill-todo','検討中':'pill-todo','レビュー中':'pill-prog','検証中':'pill-prog','遅延':'pill-hold'};return m[st]||'pill-todo';}
+function smPillCls(st){const m={'完了':'pill-done','進行中':'pill-prog','保留':'pill-hold','中止':'pill-stop','未着手':'pill-todo','検討中':'pill-todo','レビュー中':'pill-prog','検証中':'pill-prog','遅延':'pill-hold','候補':'pill-todo'};return m[st]||'pill-todo';}
 function smKpiSets(s){const sets=(s.kpiSets&&s.kpiSets.length?s.kpiSets:[{kpi:s.kpi,goal:s.goal,actual:s.actual}]);return sets.filter(k=>k.kpi||k.goal||k.actual);}
 function renderShisakuTable(list){
   const cols=SM_COLS.filter(c=>ST.smCols[c[0]]);
@@ -996,8 +1002,34 @@ const SH_W={
 /* 見出しの色（施策管理表.xlsx のテーマ色から算出） */
 const SH_C={h2:'#358E94',h2o:'#FF6D01',pa:'#B5E5E8',d:'#AEDCBA',c:'#F7B4AE',ex:'#d9d9d9'};
 const SH_ORANGE=new Set(['O','Q','U','X','AA']);
-const SH={sheet:null,rows:[],cols:[],r:0,c:0,er:0,ec:0,editing:false,mode:null,composing:false,undo:[],redo:[],panel:false,panelRow:null,drag:false,dd:null,inited:false};
-function shCols(biz){return SH_BASE.concat(SH_EXTRA[biz]||[]).map((c,i)=>({L:c[0],label:c[1],f:c[2],t:c[3],w:(SH_W[biz]||[])[i]||8.43}));}
+/* アプリで追加した右端の列（共通資料 5-2・5-3）。Excelの施策管理表にはない列で、既存の列の右端にだけ並べる。
+   ro＝シートでは直接入力できない（自動列は機械だけが書く／採否は詳細パネルのボタンで入る）。grp＝見出しの色分け */
+const SH_NEW=[
+ {label:'起票元ID',f:'originId',t:'text',w:14,grp:'pdca'},
+ {label:'施策タイプ',f:'shisakuType',t:'list',w:11,grp:'pdca',opts:['単発完了型','継続改善型']},
+ {label:'対象URL',f:'targetUrl',t:'url',w:22,grp:'pdca'},
+ {label:'検証指標\nの種類',f:'verifyKind',t:'list',w:13,grp:'pdca'},
+ {label:'着手時値\n（自動）',f:'baseVal',t:'text',w:11,grp:'auto',ro:true},
+ {label:'検証値\n（自動）',f:'verifyVal',t:'text',w:11,grp:'auto',ro:true},
+ {label:'取得日\n（自動）',f:'verifyDate',t:'date',w:12,grp:'auto',ro:true},
+ {label:'判定',f:'judge',t:'list',w:9,grp:'pdca',opts:['達成','未達']},
+ {label:'次の一手',f:'nextAct',t:'long',w:30,grp:'pdca'},
+ {label:'サイクル数',f:'cycleNo',t:'text',w:9,grp:'pdca'},
+ {label:'親施策No',f:'parentNo',t:'text',w:9,grp:'pdca'},
+ {label:'採否',f:'adopt',t:'text',w:8,grp:'adopt',ro:true},
+ {label:'採否の理由',f:'adoptReason',t:'long',w:28,grp:'adopt',ro:true},
+ {label:'決定日',f:'adoptDate',t:'date',w:12,grp:'adopt',ro:true},
+ {label:'決定者',f:'adoptBy',t:'text',w:10,grp:'adopt',ro:true}];
+const SH_NEWC={pdca:{h1:'#C7D2FE',h2:'#4F46E5',name:'PDCA（追加）'},auto:{h1:'#C7D2FE',h2:'#64748b',name:'PDCA（追加）'},adopt:{h1:'#FDE68A',h2:'#B45309',name:'採否'}};
+function shLetter(n){let s='';n++;while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26);}return s;}
+const SH={sheet:null,rows:[],cols:[],r:0,c:0,er:0,ec:0,editing:false,mode:null,composing:false,undo:[],redo:[],panel:false,panelRow:null,drag:false,dd:null,inited:false,pending:false};
+function shCols(biz){
+  const base=SH_BASE.concat(SH_EXTRA[biz]||[]).map((c,i)=>({L:c[0],label:c[1],f:c[2],t:c[3],w:(SH_W[biz]||[])[i]||8.43}));
+  const n0=base.length;
+  return base.concat(SH_NEW.map((c,i)=>Object.assign({},c,{L:shLetter(n0+i),isNew:true})));
+}
+function shBaseCount(){return SH.cols.filter(c=>!c.isNew).length;}
+function shColBy(f){return SH.cols.find(c=>c.f===f);}
 function shPx(w){return Math.round(w*7+5);}
 function shKsets(s){if(Array.isArray(s.kpiSets)&&s.kpiSets.length)return s.kpiSets;return(s.kpi||s.goal||s.actual)?[{kpi:s.kpi||null,goal:s.goal||null,actual:s.actual||null}]:[];}
 function shKsetHas(k){return !!(k&&(k.kpi||k.goal||k.actual||k.actualExtra));}
@@ -1042,7 +1074,8 @@ function shBuildRows(){
   const st=shSt();
   const showDel=!!(document.getElementById('smShowDeleted')||{}).checked;
   const q=((document.getElementById('smSearch')||{}).value||'').trim().toLowerCase();
-  let rows=(DATA.shisaku[SH.sheet]||[]).filter(s=>showDel?!!s.deleteFlag:!s.deleteFlag);
+  /* 状態が「候補」の行は標準のシートには出さず、「採否待ち」の切替でだけ見せる */
+  let rows=(DATA.shisaku[SH.sheet]||[]).filter(s=>(showDel?!!s.deleteFlag:!s.deleteFlag)&&((s.status==='候補')===SH.pending));
   if(q)rows=rows.filter(s=>SH.cols.some(c=>shGet(s,c.f).toLowerCase().includes(q)));
   for(const L in st.filters){const c=SH.cols.find(x=>x.L===L);const vals=st.filters[L];if(!c||!Array.isArray(vals))continue;const set=new Set(vals);rows=rows.filter(s=>set.has(shDisp(c,shGet(s,c.f))));}
   if(st.sort.length){
@@ -1055,7 +1088,7 @@ function shBuildRows(){
 function shCellHtml(s,c,ci,ri){
   const d=shDisp(c,shGet(s,c.f));let inner=escHtml(d);
   if(c.t==='url'&&d){const u=safeUrl(d);if(u)inner=`<a class="sh-link" href="${escHtml(u)}" target="_blank" rel="noopener" onmousedown="event.stopPropagation()">${escHtml(d)}</a>`;}
-  return `<td class="${ci===0?'c0':''}${s.deleteFlag?' del':''}" data-r="${ri}" data-c="${ci}"${d.length>8?` title="${escHtml(d)}"`:''}>${inner}</td>`;
+  return `<td class="${ci===0?'c0':''}${c.ro?' ro':''}${s.deleteFlag?' del':''}" data-r="${ri}" data-c="${ci}"${d.length>8?` title="${escHtml(d)}"`:''}>${inner}</td>`;
 }
 function renderShisakuSheet(keepRows){
   if(!SH.inited)shInit();
@@ -1076,6 +1109,8 @@ function renderShisakuSheet(keepRows){
   h+='<tr class="sh-letters"><th class="rn" data-corner="1" title="すべて選択"></th>'+cols.map((c,i)=>`<th data-c="${i}">${c.L}${rs(i)}</th>`).join('')+'</tr>';
   /* 1行目：P/A（B〜D）・D（E〜Q）・C（R〜AA）。列の固定に対応するため1列ずつのセルで、Excelの結合セルと同じ見た目にする */
   h+='<tr class="sh-h1"><th class="rn">1</th>'+cols.map((c,i)=>{
+    if(c.isNew){const nc=SH_NEWC[c.grp];const prev=cols[i-1],nxt=cols[i+1];const first=!(prev&&prev.isNew&&SH_NEWC[prev.grp].name===nc.name);const last=!(nxt&&nxt.isNew&&SH_NEWC[nxt.grp].name===nc.name);
+      return `<th data-c="${i}" style="background:${nc.h1};${last?'':'border-right-color:'+nc.h1+';'}text-align:left;padding-left:6px;white-space:nowrap">${first?nc.name:''}</th>`;}
     const g=(i>=1&&i<=3)?['P/A',SH_C.pa,1,3]:(i>=4&&i<=16)?['D',SH_C.d,4,16]:(i>=17&&i<=26)?['C',SH_C.c,17,26]:null;
     if(!g)return `<th data-c="${i}" style="background:#fff"></th>`;
     return `<th data-c="${i}" style="background:${g[1]};${i<g[3]?'border-right-color:'+g[1]+';':''}text-align:left;padding-left:6px">${i===g[2]?g[0]:''}</th>`;
@@ -1084,7 +1119,7 @@ function renderShisakuSheet(keepRows){
     const si=st.sort.findIndex(x=>x.L===c.L);
     const so=si>=0?((st.sort[si].dir>0?'▲':'▼')+(st.sort.length>1?String(si+1):'')):'';
     const on=st.filters[c.L]?' on':'';
-    const ex=i>=27;const bg=ex?SH_C.ex:(SH_ORANGE.has(c.L)?SH_C.h2o:SH_C.h2);
+    const ex=!c.isNew&&i>=27;const bg=c.isNew?SH_NEWC[c.grp].h2:(ex?SH_C.ex:(SH_ORANGE.has(c.L)?SH_C.h2o:SH_C.h2));
     return `<th data-c="${i}" style="background:${bg};color:${ex?'#333':'#fff'}" title="${escHtml(c.label.replace(/\n/g,''))}">${escHtml(c.label).replace(/\n/g,'<br>')}${so?`<span class="sh-so">${so}</span>`:''}<span class="sh-fbtn${on}" data-fc="${i}" title="並べ替え・フィルタ">▾</span>${rs(i)}</th>`;
   }).join('')+'</tr></thead><tbody>';
   SH.rows.forEach((s,ri)=>{h+=`<tr><th class="rn" data-r="${ri}">${ri+3}</th>`+cols.map((c,ci)=>shCellHtml(s,c,ci,ri)).join('')+'</tr>';});
@@ -1097,6 +1132,8 @@ function renderShisakuSheet(keepRows){
   SH.c=Math.min(SH.c,cols.length-1);SH.ec=Math.min(SH.ec,cols.length-1);
   document.getElementById('shTabs').innerHTML=BIZ4.map(b=>`<div class="sh-tab${b===SH.sheet?' on':''}" onclick="shSwitchSheet('${b}')">${b}</div>`).join('')+'<div class="sh-status" id="shStatus"></div>';
   SH.panelRow=null;
+  const pb=document.getElementById('shPendBtn');
+  if(pb){const n=(DATA.shisaku[SH.sheet]||[]).filter(s=>!s.deleteFlag&&s.status==='候補').length;pb.textContent='⏳ 採否待ち（'+n+'）';pb.classList.toggle('btn-primary',SH.pending);pb.classList.toggle('btn-ghost',!SH.pending);}
   shPaintSel();
 }
 function shSwitchSheet(b){if(SH.editing)shCommit();if(b===SH.sheet)return;ST.biz=b;SH.sheet=b;SH.r=SH.c=SH.er=SH.ec=0;initUI();renderAll();}
@@ -1146,6 +1183,7 @@ function shSelect(r,c,er,ec){SH.r=r;SH.c=c;SH.er=er==null?r:er;SH.ec=ec==null?c:
 function shStartEdit(mode,initial){
   if(!SH.rows.length)return;
   const ed=document.getElementById('shEd');const s=SH.rows[SH.r],c=SH.cols[SH.c];
+  if(c.ro){ed.value='';toast('グレーの列は直接入力できません（自動列は機械が入力／採否は詳細パネルのボタンで操作します）');return;}
   SH.editing=true;SH.mode=mode;
   if(initial!==null){ed.value=(initial!==undefined)?initial:shDisp(c,shGet(s,c.f));}
   ed.classList.add('on');document.getElementById('shDdBtn').style.display='none';
@@ -1170,10 +1208,11 @@ function shRefreshCell(s,c){
 }
 /* changes:[{s,c,v}]。opts.fromPanel=true のときは詳細パネルを描き直さない（入力中のフォーカスを保つ） */
 function shApply(changes,opts){
-  opts=opts||{};const batch=[];const now=new Date().toISOString();const biz=SH.sheet;
+  opts=opts||{};const batch=[];const now=new Date().toISOString();const biz=SH.sheet;let blocked=0;
   for(const ch of changes){
     const nv=shNormVal(ch.c,ch.v);const ov=shGet(ch.s,ch.c.f);
     if(ov===nv)continue;
+    if(ch.c.ro&&!opts.force){blocked++;continue;}
     if(ch.c.f==='no'){
       if(!nv){toast('No は空にできません');continue;}
       if((DATA.shisaku[biz]||[]).some(x=>x!==ch.s&&String(x.no)===nv))toast('No.'+nv+' は他の行でも使われています（別の行として扱います）');
@@ -1181,6 +1220,7 @@ function shApply(changes,opts){
     shSetRaw(ch.s,ch.c.f,nv);ch.s.updatedAt=now;
     batch.push({s:ch.s,f:ch.c.f,o:ov,n:nv});shRefreshCell(ch.s,ch.c);
   }
+  if(blocked)toast('グレーの列は直接入力できません（自動列は機械が入力／採否は詳細パネルのボタンで操作します）');
   if(!batch.length)return 0;
   SH.undo.push(batch);if(SH.undo.length>300)SH.undo.shift();SH.redo=[];
   markUnsaved();shUpdateStatus();
@@ -1199,15 +1239,15 @@ function shUndo(redo){
     const c=SH.cols.find(cc=>cc.f===x.f);if(c)shRefreshCell(x.s,c);
   }
   to.push(b);markUnsaved();
-  if(structural)renderShisakuSheet();
+  if(structural||b.some(x=>x.f==='adopt'))renderShisakuSheet();
   else{const first=b[0];const ri=SH.rows.indexOf(first.s),ci=SH.cols.findIndex(cc=>cc.f===first.f);if(ri>=0&&ci>=0){shSelect(ri,ci);shEnsureVisible(ri,ci);}else shPaintSel();SH.panelRow=null;if(SH.panel)shRenderPanel();}
   toast(redo?'やり直しました':'元に戻しました');
 }
-function shClearRange(){const [r0,r1,c0,c1]=shRange();const ch=[];for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){if(SH.cols[c].f==='no')continue;ch.push({s:SH.rows[r],c:SH.cols[c],v:''});}shApply(ch);}
+function shClearRange(){const [r0,r1,c0,c1]=shRange();const ch=[];for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){if(SH.cols[c].f==='no'||SH.cols[c].ro)continue;ch.push({s:SH.rows[r],c:SH.cols[c],v:''});}shApply(ch);}
 function shFillDown(){
   const [r0,r1,c0,c1]=shRange();const ch=[];
   const src=(r0===r1)?r0-1:r0;if(src<0)return;
-  for(let c=c0;c<=c1;c++){if(SH.cols[c].f==='no')continue;const v=shGet(SH.rows[src],SH.cols[c].f);for(let r=(r0===r1?r0:r0+1);r<=r1;r++)ch.push({s:SH.rows[r],c:SH.cols[c],v});}
+  for(let c=c0;c<=c1;c++){if(SH.cols[c].f==='no'||SH.cols[c].ro)continue;const v=shGet(SH.rows[src],SH.cols[c].f);for(let r=(r0===r1?r0:r0+1);r<=r1;r++)ch.push({s:SH.rows[r],c:SH.cols[c],v});}
   shApply(ch);
 }
 function shSelTsv(){
@@ -1239,7 +1279,7 @@ function shPaste(text){
 /* ---- 一覧から選ぶ（プルダウン） ---- */
 function shListOptions(c){
   const m=DATA.shisakuMasters||{};const f=c.f.replace(/^k\d\./,'');
-  const base=f==='kpi'?(m.kpiItems||[]):(f==='tanto'?[]:(m[f]||[]));
+  const base=c.opts?c.opts:(f==='kpi'?(m.kpiItems||[]):(f==='tanto'?[]:(m[f]||[])));
   const used=(DATA.shisaku[SH.sheet]||[]).map(s=>shGet(s,c.f)).filter(Boolean);
   return [...new Set([...base,...used].map(String))].sort((a,b)=>a.localeCompare(b,'ja'));
 }
@@ -1304,6 +1344,7 @@ function shAddRow(){
   if(SH.editing)shCommit();
   const biz=SH.sheet;DATA.shisaku[biz]=DATA.shisaku[biz]||[];
   const s={no:nextShisakuNo(biz),source:'app',updatedAt:new Date().toISOString()};
+  if(SH.pending)s.status='候補';
   DATA.shisaku[biz].push(s);SH.undo.push([{type:'add',biz,s}]);SH.redo=[];markUnsaved();
   SH.rows.push(s);renderShisakuSheet(true);
   const r=SH.rows.length-1;shSelect(r,1);shEnsureVisible(r,1);document.getElementById('shEd').focus({preventScroll:true});
@@ -1334,36 +1375,65 @@ function shRenderPanel(){
     else if(c.t==='list')inp=`<input data-ci="${ci}" list="shdl${ci}" value="${escHtml(v)}"><datalist id="shdl${ci}">${shListOptions(c).map(o=>`<option value="${escHtml(o)}">`).join('')}</datalist>`;
     else if(c.t==='date')inp=`<input type="date" data-ci="${ci}" value="${/^\d{4}-\d{2}-\d{2}$/.test(v)?v:''}">`;
     else inp=`<input data-ci="${ci}" value="${escHtml(v)}">`;
+    if(c.ro)inp=`<div class="sh-ro">${escHtml(shDisp(c,v))||'—'}</div>`;
     const u=c.t==='url'?safeUrl(v):null;
     return `<label>${c.L}　${escHtml(c.label.replace(/\n.*$/s,'').replace(/\n/g,''))}</label><div>${inp}${u?`<div style="margin-top:2px"><a href="${escHtml(u)}" target="_blank" rel="noopener">Backlogを開く ↗</a></div>`:''}</div>`;
   };
   const grp=(title,bg,from,to)=>`<div class="sh-psec" style="background:${bg}">${title}</div><div class="sh-pf">${SH.cols.map((c,ci)=>(ci>=from&&ci<=to)?fieldHtml(c,ci):'').join('')}</div>`;
+  const grpF=(title,bg,pred)=>`<div class="sh-psec" style="background:${bg}">${title}</div><div class="sh-pf">${SH.cols.map((c,ci)=>pred(c)?fieldHtml(c,ci):'').join('')}</div>`;
+  const isCand=s.status==='候補';
+  let adBy='';try{adBy=localStorage.getItem('smAdoptBy')||'';}catch(e){}
+  const adoptHtml=`${grpF('採否'+(isCand?'（採否待ち）':''),'#FDE68A',c=>c.grp==='adopt')}
+    ${isCand?`<div class="sh-pf" style="margin-top:6px"><label>理由（必須）</label><div><textarea id="shAdReason" rows="3" placeholder="採用・非採用・保留の理由"></textarea></div><label>決定者</label><div><input id="shAdBy" value="${escHtml(adBy)}" placeholder="お名前"></div></div>
+    <div style="display:flex;gap:6px;margin-top:6px"><button class="btn btn-green btn-sm" onclick="shAdopt('採用')">採用</button><button class="btn btn-danger btn-sm" onclick="shAdopt('非採用')">非採用</button><button class="btn btn-ghost btn-sm" onclick="shAdopt('保留')">保留</button></div>
+    <div class="muted" style="font-size:11px;margin-top:4px">採用＝状態が「未着手」になり標準のシートに載ります／非採用＝行は消さず、記録を残して状態を「完了」にします／保留＝採否待ちに残ります</div>`
+    :(s.adopt?`<div style="margin-top:6px"><button class="btn btn-ghost btn-sm" onclick="shAdopt('reset')">採否をやり直す（候補に戻す）</button></div>`:'')}`;
   const pd=(DATA.pdca||[]).filter(x=>x.biz===biz&&String(x.baseNo||'')===no);
   const type=s.shisakuType||'';
   p.innerHTML=`<div class="sh-ptitle">${escHtml(biz)} No.${escHtml(no||'-')}${s.deleteFlag?'<span class="pill pill-stop">削除候補</span>':''}<span style="margin-left:auto;cursor:pointer;color:var(--muted)" onclick="shTogglePanel(false)" title="閉じる">✕</span></div>
     <div class="muted" style="font-size:11px;margin:2px 0 6px">${escHtml(trunc(s.naiyo||s.mokuteki||'',60))}</div>
+    ${isCand?adoptHtml:''}
     <div class="sh-psec" style="background:#e0e7ff">PDCA（Check・Act）</div>
     <div class="sh-pf"><label>施策タイプ</label><div><select id="shType"><option value="">（未設定）</option><option ${type==='単発完了型'?'selected':''}>単発完了型</option><option ${type==='継続改善型'?'selected':''}>継続改善型</option></select></div></div>
     ${pd.length?pd.map(x=>`<div class="sh-pdca"><b>${escHtml(x.date||'')}</b>　判定：${escHtml(x.judge||'—')}　期限：${escHtml(x.due||'—')}<br>結果：${escHtml(trunc(x.result||'—',60))}<br>次の一手：${escHtml(trunc(x.act||'—',60))}<div style="text-align:right"><button class="btn btn-ghost btn-sm" onclick="editPdca('${escHtml(String(x.id)).replace(/'/g,"\\'")}')">開く・編集</button></div></div>`).join(''):'<div class="muted" style="font-size:11px;margin:6px 0">この施策のPDCA記録はまだありません</div>'}
     <button class="btn btn-ghost btn-sm" onclick="openPdcaFrom('${biz}','${qno}')">＋この施策のPDCAを記録</button>
-    ${grp('P/A（計画）',SH_C.pa,0,3)}${grp('D（実行）',SH_C.d,4,16)}${grp('C（検証）',SH_C.c,17,SH.cols.length-1)}
+    ${grpF('PDCAの記入項目（アプリで追加）','#C7D2FE',c=>c.isNew&&c.grp!=='adopt'&&c.f!=='shisakuType')}
+    ${isCand?'':adoptHtml}
+    ${grp('P/A（計画）',SH_C.pa,0,3)}${grp('D（実行）',SH_C.d,4,16)}${grp('C（検証）',SH_C.c,17,shBaseCount()-1)}
     <div class="sh-psec" style="background:#f1f5f9">操作</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">${s.deleteFlag?`<button class="btn btn-ghost btn-sm" onclick="shRowOp('restore')">復元</button><button class="btn btn-danger btn-sm" onclick="shRowOp('purge')">完全削除</button>`:`<button class="btn btn-ghost btn-sm" onclick="shRowOp('dup')">この行を複製</button><button class="btn btn-danger btn-sm" onclick="shRowOp('del')">削除（削除候補へ）</button>`}</div>
     <div class="muted" style="font-size:11px;margin-top:8px">最終更新：${s.updatedAt?escHtml(new Date(s.updatedAt).toLocaleString('ja-JP')):'—'}／出所：${s.source==='app'?'アプリ':'Excel取込'}</div>`;
   p.querySelectorAll('[data-ci]').forEach(el=>{el.addEventListener('change',()=>{const c=SH.cols[+el.dataset.ci];shApply([{s,c,v:el.value}],{fromPanel:true});});});
   const ts=p.querySelector('#shType');ts.onchange=()=>{
-    s.shisakuType=ts.value||null;s.updatedAt=new Date().toISOString();markUnsaved();shUpdateStatus();
+    shApply([{s,c:shColBy('shisakuType'),v:ts.value}],{fromPanel:true});
     if(ts.value==='継続改善型'){toast('継続改善型にしました。続けてPDCAを記録してください');openPdcaFrom(biz,no);}
     else toast(ts.value?('施策タイプ：'+ts.value):'施策タイプを未設定にしました');
   };
 }
+/* 採否（候補の行を 採用／非採用／保留 にする。理由は必須。採用→未着手、非採用→記録を残して完了、保留→候補のまま） */
+function shAdopt(kind){
+  const s=SH.panelRow||SH.rows[SH.r];if(!s)return;
+  const reasonEl=document.getElementById('shAdReason'),byEl=document.getElementById('shAdBy');
+  const reset=kind==='reset';
+  const reason=reasonEl?reasonEl.value.trim():'',by=byEl?byEl.value.trim():'';
+  if(!reset&&!reason){toast('理由を入力してください（採否には理由が必要です）');if(reasonEl)reasonEl.focus();return;}
+  if(reset&&!confirm('採否をやり直して「候補」に戻しますか？（採否の記録は消えます）'))return;
+  if(!reset){try{localStorage.setItem('smAdoptBy',by);}catch(e){}}
+  const d=new Date(),today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const stMap={'採用':'未着手','非採用':'完了','保留':'候補'};
+  const v=reset?{adopt:'',adoptReason:'',adoptDate:'',adoptBy:'',status:'候補'}:{adopt:kind,adoptReason:reason,adoptDate:today,adoptBy:by,status:stMap[kind]};
+  shApply(Object.keys(v).map(f=>({s,c:shColBy(f),v:v[f]})),{force:true,fromPanel:true});
+  toast(reset?'候補に戻しました':kind==='採用'?'採用しました（状態：未着手）':kind==='非採用'?'非採用にしました（記録を残して状態：完了）':'保留にしました（採否待ちに残ります）');
+  renderShisakuSheet();
+}
+function shTogglePending(){if(SH.editing)shCommit();SH.pending=!SH.pending;SH.r=SH.c=SH.er=SH.ec=0;renderShisakuSheet();}
 function shUpdateStatus(){
   const el=document.getElementById('shStatus');if(!el)return;
-  const total=(DATA.shisaku[SH.sheet]||[]).filter(s=>!s.deleteFlag).length;
+  const total=(DATA.shisaku[SH.sheet]||[]).filter(s=>!s.deleteFlag&&((s.status==='候補')===SH.pending)).length;
   let sel='';
   if(SH.rows.length){const [r0,r1,c0,c1]=shRange();const n=(r1-r0+1)*(c1-c0+1);if(n>1){let cnt=0,sum=0,num=0;for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){const v=shGet(SH.rows[r],SH.cols[c].f);if(v!==''){cnt++;if(/^-?\d+(\.\d+)?$/.test(v)){num++;sum+=parseFloat(v);}}}sel=`　データの個数：${cnt}`+(num?`　合計：${Math.round(sum*100)/100}`:'');}}
   const unsaved=document.getElementById('unsavedDot')&&document.getElementById('unsavedDot').classList.contains('on');
-  el.innerHTML=`${escHtml(SH.sheet)}：${SH.rows.length}行を表示／全${total}件${sel}${unsaved?'　<span style="color:#b45309">● 未保存の変更あり（右上「💾 保存(JSON)」で保存）</span>':''}`;
+  el.innerHTML=`${escHtml(SH.sheet)}：${SH.pending?'<b style="color:#b45309">採否待ち（状態＝候補）</b> ':''}${SH.rows.length}行を表示／全${total}件${sel}${unsaved?'　<span style="color:#b45309">● 未保存の変更あり（右上「💾 保存(JSON)」で保存）</span>':''}`;
 }
 /* ---- イベント（初回のみ登録） ---- */
 function shInit(){
@@ -1795,7 +1865,7 @@ function mergeShisakuImport(biz,importedRecs){
   return conflicts;
 }
 /* Excelにない、アプリだけで持つ項目（Excel版で置き換えても消さない） */
-const SHISAKU_APP_ONLY_KEYS=['shisakuType'];
+const SHISAKU_APP_ONLY_KEYS=['shisakuType','originId','targetUrl','verifyKind','baseVal','verifyVal','verifyDate','judge','nextAct','cycleNo','parentNo','adopt','adoptReason','adoptDate','adoptBy'];
 function shisakuAppOnly(rec){const o={};if(rec)SHISAKU_APP_ONLY_KEYS.forEach(k=>{if(rec[k]!=null)o[k]=rec[k];});return o;}
 let PENDING_CONFLICTS=[];
 function kpiSetsKey(rec){const a=(rec.kpiSets||[]).map(x=>[x.kpi||null,x.goal||null,x.actual||null,x.actualExtra||null]);while(a.length&&a[a.length-1].every(v=>v==null))a.pop();return JSON.stringify(a);}
