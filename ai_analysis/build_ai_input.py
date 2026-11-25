@@ -2,7 +2,7 @@
 """AI分析に渡す集計表（個人情報なし）を作る。
 
 使い方（Python は Anaconda を直接指定。読み込むファイルがあるため -I を付ける）:
-  C:\\work\\anaconda_install\\python.exe -I ai_analysis\\build_ai_input.py IS
+  C:\\work\\anaconda_install\\python.exe -I ai_analysis\\build_ai_input.py IS   （IS／SCH／MED／UN）
 
 - 入力ファイルは「コピーしてから読む」（開いたまま・書き込みはしない）。コピー先は一時フォルダ。
 - 出力：ai_analysis/input/<事業>_AI分析用集計表_<日付>.xlsx
@@ -24,12 +24,28 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUTDIR = os.path.join(HERE, 'input')
 
 BIZ_CONF = {
+    # has_dsp：DSP広告を実施している事業（SCHとISのみ）。ない事業はDSP関連のシートを出さない
+    # geo_domains：GEOの領域名（domain_label）。MEDは「病院向け」と「ECサイト」の2つ
     'IS': dict(
         jisseki=os.path.join(DOC, 'マーケティング本部｜IS｜実績.xlsm'),
-        geo_domain='インサイトセールス', site='solution.onward-cd.co.jp',
-        dsp_group='IS', ga_site='solution.onward-cd.co.jp', sheet='IS'),
+        geo_domains=['インサイトセールス'], site='solution.onward-cd.co.jp',
+        dsp_group='IS', ga_site='solution.onward-cd.co.jp', sheet='IS', has_dsp=True),
+    'SCH': dict(
+        jisseki=os.path.join(DOC, 'マーケティング本部｜SCH｜実績.xlsm'),
+        geo_domains=['スクール（学生服）'], site='school.onward-cd.co.jp',
+        dsp_group='SCH', ga_site='school.onward-cd.co.jp', sheet='SCH', has_dsp=True),
+    'MED': dict(
+        jisseki=os.path.join(DOC, 'マーケティング本部｜MED｜実績.xlsm'),
+        geo_domains=['メディカルウェア（病院向け）', 'メディカルウェア（ECサイト）'], site='medical.onward-cd.co.jp',
+        dsp_group='MED', ga_site='medical.onward-cd.co.jp', sheet='MED', has_dsp=False),
+    'UN': dict(
+        jisseki=os.path.join(DOC, 'マーケティング本部｜UN｜実績.xlsm'),
+        geo_domains=['オリジナルユニフォーム'], site='uniform.onward-cd.co.jp',
+        dsp_group='UN', ga_site='uniform.onward-cd.co.jp', sheet='UN', has_dsp=False),
 }
 C = BIZ_CONF[BIZ]
+GEO_DOMS = C['geo_domains']
+GEO_LABEL = '・'.join(GEO_DOMS)
 
 tmp = tempfile.mkdtemp(prefix='ai_input_')
 
@@ -131,9 +147,12 @@ rep_rows = [
     ['示唆③（人が記載）', 'コラム読了率の向上。記事冒頭に「この記事で得られる3つのメリット」を箇条書きで明示／見出し（目次）の短文化。エンタープライズの多忙なマーケター向けに「拾い読み」ができる構成にする。', '', 'p.48'],
     ['年間戦略と課題', '年間戦略：SQL②の件数増加・良質化（認知拡大・MAL増加）。MQL以前の課題：①事業認知の不足（Organic流入が目標に対し最も進捗率が低く、指名検索のImpも少なくクリック0＝9月）②MALの不足（9月はDisplay増額とEmailで目標達成、Organicはほぼ変わらず）。検討したいこと：非指名検索KWによる初回流入の創出（短期＝リスティングの再導入、長期＝非指名KWのコンテンツマーケ）／DSP広告の改善（サイトデザインに近いクリエイティブ、非指名型の課題訴求型コピーのテスト、流入後の回遊改善）／強いヘッドラインを持つLPが必要（セールスプロモーションのLPを検討）／まずDSP広告の改善から実施（業務委託デザイナーの調整後）。', 'DSP広告からTOPページ流入後の次ページ遷移率：約15%', 'p.49'],
 ]
+if BIZ != 'IS':
+    _np = os.path.join(HERE, 'report_notes', BIZ + '.json')
+    rep_rows = json.load(open(_np, encoding='utf-8')) if os.path.exists(_np) else []
 sheet('02_月次レポート所見', ['区分', '内容（社名・個人名を除いて要約）', '数字', '出典（FLUED｜2026｜月次定例レポート 10月号のスライド）'], rep_rows,
       [18, 110, 42, 18],
-      '出どころ：FLUED様の月次定例レポート（2026年10月号・IS）。人が書いた所見・示唆を含む。SAL/SQL企業名・事例企業名は除いて要約した。数字（セッション・MQL等）はROIダッシュボードの出力と同じもの。',
+      '出どころ：FLUED様の月次定例レポート（2026年10月号・' + BIZ + '）。人が書いた所見・示唆を含む。SAL/SQL企業名・事例企業名は除いて要約した。数字（セッション・MQL等）はROIダッシュボードの出力と同じもの。',
       wrap_cols=(1, 2))
 
 # ---------------------------------------------------------------- GEO（設問別）
@@ -141,14 +160,14 @@ ins = json.load(open(os.path.join(GEO, 'reports', 'insights_20261104_133016.json
 res = list(csv.DictReader(open(os.path.join(GEO, 'results', 'results_20261104_133016_r1.csv'), encoding='utf-8-sig')))
 geo_rows = []
 for r in res:
-    if r['domain_label'] != C['geo_domain']:
+    if r['domain_label'] not in GEO_DOMS:
         continue
-    geo_rows.append([r['question_id'], r['type_label'], r['stakeholder_label'], r['question'],
+    geo_rows.append([r['question_id'], (r['type_label'] if len(GEO_DOMS) == 1 else r['domain_label'] + '／' + r['type_label']), r['stakeholder_label'], r['question'],
                      '出た' if str(r['mention_detected']).strip().lower() in ('true', '1', 'yes') else '出なかった',
                      r['mention_position'], r['entities_found'], r['urls_found'], r['specificity_tier'], r['model_id'], r['answer']])
 sheet('03_GEO_設問別', ['設問ID', '質問タイプ', '想定読者', '質問', '自社の出現', '出現位置', '回答に出た企業名', '回答に出たURL', '具体度', 'モデル', '回答（全文）'],
       geo_rows, [10, 14, 12, 50, 10, 8, 40, 30, 8, 14, 120],
-      f'出どころ：GEO insights/results {ins["generated_at"]}（2026-11-04実行）。{C["geo_domain"]}の全{len(geo_rows)}問。全問が1モデル（claude-sonnet-5）の結果。'
+      f'出どころ：GEO insights/results {ins["generated_at"]}（2026-11-04実行）。{GEO_LABEL}の全{len(geo_rows)}問。全問が1モデル（claude-sonnet-5）の結果。'
       '競合の社名はAIに渡してよい（中島さん確認済み）。質問の件数が少なく1モデルのため、GEO由来の候補は根拠を「弱い」とする。', wrap_cols=(3, 6, 10))
 
 # 実行履歴（領域×タイプ別の出現）
@@ -157,21 +176,23 @@ for f in sorted(glob.glob(os.path.join(GEO, 'results', 'results_*_r1.csv'))):
     rows = list(csv.DictReader(open(f, encoding='utf-8-sig')))
     tot = collections.Counter(); det = collections.Counter()
     for r in rows:
-        if r['domain_label'] != C['geo_domain']:
+        if r['domain_label'] not in GEO_DOMS:
             continue
         tot[r['type_label']] += 1
         if str(r['mention_detected']).strip().lower() in ('true', '1', 'yes'):
             det[r['type_label']] += 1
+    if not sum(tot.values()):
+        continue  # この領域の質問が無かった実行（質問数0）は載せない
     _p = os.path.basename(f).split('_')
     run = _p[1] + '_' + _p[2]
-    hist.append([run, sum(det.values()), sum(tot.values())] + [f'{det[t]}/{tot[t]}' for t in sorted({r['type_label'] for r in res if r['domain_label'] == C['geo_domain']})])
-types = sorted({r['type_label'] for r in res if r['domain_label'] == C['geo_domain']})
+    hist.append([run, sum(det.values()), sum(tot.values())] + [f'{det[t]}/{tot[t]}' for t in sorted({r['type_label'] for r in res if r['domain_label'] in GEO_DOMS})])
+types = sorted({r['type_label'] for r in res if r['domain_label'] in GEO_DOMS})
 sheet('03b_GEO_推移', ['実行日', '出現', '質問数'] + types, hist, [12, 7, 8] + [14] * len(types),
-      f'{C["geo_domain"]}の出現の推移（質問タイプ別の「出現／質問数」）。')
+      f'{GEO_LABEL}の出現の推移（質問タイプ別の「出現／質問数」）。')
 
 # 定型文（GEOの改善案）
-pb = [[a['type'], f'{a["miss"]}/{a["total"]}', a['priority'], a['playbook'], '、'.join(a.get('cover_attributes', [])), '、'.join(a.get('beating_competitors', []))]
-      for a in ins['actions'] if a['domain'] == C['geo_domain']]
+pb = [[(a['type'] if len(GEO_DOMS) == 1 else a['domain'] + '／' + a['type']), f'{a["miss"]}/{a["total"]}', a['priority'], a['playbook'], '、'.join(a.get('cover_attributes', [])), '、'.join(a.get('beating_competitors', []))]
+      for a in ins['actions'] if a['domain'] in GEO_DOMS]
 sheet('04_GEO_定型文', ['質問タイプ', '出なかった／質問数', '優先度', '定型文（現状のまま）', '回答で重視された観点', '想起された競合'], pb,
       [14, 14, 8, 80, 50, 40],
       '定型文はいったん現状の表現のまま（中島さん確認済み）。施策候補の内容は、この定型文ではなく、上の「設問別」の結果からAIが分析した示唆にする。',
@@ -192,7 +213,7 @@ for ym in sorted(seed['dsp']['trend']):
 sheet('05_DSP広告_月次', ['年月', 'imp', 'クリック', 'CTR', 'CPC(円)', '配信費用(円)', '月予算(円)', 'CV', 'ビュースルーCV'], dsp_rows,
       [10, 12, 10, 9, 9, 13, 12, 6, 12],
       f'出どころ：DSP広告分析ダッシュボード（{seed["updated"][:10]}更新・2026年10月分まで取込済み）。DSP広告はSCHとISの2事業で実施。目的は認知アップ・エンゲージメントアップ。'
-      '月次レポート9月号の配信実績（imp 3,415,315・クリック6,001）と一致。')
+      + ('月次レポート9月号の配信実績（imp 3,415,315・クリック6,001）と一致。' if BIZ == 'IS' else '（この事業の月次レポートの配信実績との突き合わせは未実施）'))
 bm = seed['dsp']['byMonth']
 g_rows = []
 for ym in sorted(bm):
@@ -237,7 +258,18 @@ for m in ga['report']['months']:
                         round(p['engagementSec'] / p['sessions'], 1) if p['sessions'] else None, p['scrollUsers'], p['users']])
 sheet('06c_ページ別上位', ['年月', 'ページ', '表示回数', 'セッション', '回遊(ページ/セッション)', '1セッションあたり滞在(秒)', 'スクロールUU', 'UU'], pg_rows,
       [10, 56, 10, 11, 14, 16, 12, 8], '表示回数上位15ページ（月ごと）。')
-gsc = seed['gscsearch'].get(C['dsp_group'], {})
+gsc = seed['gscsearch'].get(C['dsp_group'])
+if not gsc:
+    _g = seed['gsc'][C['ga_site']]
+    _m = collections.defaultdict(lambda: [0, 0, 0.0])
+    for d in _g['daily']:
+        ym = d['date'][:7].replace('-', '/')
+        _m[ym][0] += d['imp']; _m[ym][1] += d['clk']; _m[ym][2] += d['pos'] * d['imp']
+    _tq = sorted(_g['queries'], key=lambda x: -x['clk'])[:50]
+    _bi = sum(q['imp'] for q in _g['queries'] if q.get('brand')); _ai = sum(q['imp'] for q in _g['queries']) or 1
+    gsc = dict(period=_g['period'], brandShare=_bi / _ai,
+               monthly=[dict(ym=k, imp=v[0], clk=v[1], ctr=(v[1] / v[0] if v[0] else 0), pos=(v[2] / v[0] if v[0] else 0)) for k, v in sorted(_m.items())],
+               topQueries=[dict(q=q['q'], clk=q['clk'], imp=q['imp'], ctr=q['ctr'], pos=q['pos'], brand=q.get('brand')) for q in _tq])
 gm = [[x['ym'], x['imp'], x['clk'], round(x['ctr'], 4), round(x['pos'], 1)] for x in gsc.get('monthly', [])]
 sheet('06d_GSC_月次', ['年月', '表示回数', 'クリック', 'CTR', '平均掲載順位'], gm, [10, 12, 10, 9, 12],
       f'出どころ：同ダッシュボード内のGSC（{gsc.get("period")}）。指名検索の比率：{gsc.get("brandShare", 0) * 100:.1f}%。')
@@ -261,10 +293,32 @@ def col(name):
 
 
 ct, cc, cm = col('CVフラグ'), col('流入チャネル'), col('CV年月')
-flags = {'SAL': col('SAL'), 'SQL1': col('SQL1'), 'SQL2': col('SQL2'), '提案': col('提案した'), '受注': col('受注'), '辞退': col('辞退'), '失注': col('失注')}
+def col_opt(*names):
+    for nm in names:
+        try:
+            return col(nm)
+        except KeyError:
+            pass
+    return None
+
+
+# 事業ごとに列が違う：IS＝SQL1・SQL2の2列、SCH・MED・UN＝「SQL」の1列（ここでは SQL1 として数える）。辞退・失注の無い事業は飛ばす
+flags = {k: v for k, v in {'SAL': col_opt('SAL'), 'SQL1': col_opt('SQL1', 'SQL'), 'SQL2': col_opt('SQL2'), '提案': col_opt('提案した'),
+                           '受注': col_opt('受注'), '辞退': col_opt('辞退'), '失注': col_opt('失注')}.items() if v is not None}
 by_m_t = collections.Counter(); by_m_c = collections.Counter(); fun_t = collections.defaultdict(collections.Counter); fun_c = collections.defaultdict(collections.Counter)
 n = 0
 fun_l = collections.defaultdict(collections.Counter)
+
+
+def norm_ym(v):
+    """CV年月を「YYYY-MM」にそろえる（日時・日付・「2026/9」の形も月に直す）。空は「(空)」"""
+    if v is None or str(v).strip() == '':
+        return '(空)'
+    if hasattr(v, 'strftime'):
+        return v.strftime('%Y-%m')
+    t = str(v).strip()
+    mm = re.match(r'^(\d{4})[-/年](\d{1,2})', t)
+    return f'{mm.group(1)}-{int(mm.group(2)):02d}' if mm else t
 
 
 def grp(label):
@@ -283,7 +337,7 @@ for r in rows[1:]:
         continue
     n += 1
     lab = str(r[ct]).strip()
-    t, c_, m = grp(lab), str(r[cc] or '(空)').strip(), str(r[cm] or '(空)').strip()
+    t, c_, m = grp(lab), str(r[cc] or '(空)').strip(), norm_ym(r[cm])
     by_m_t[(m, t)] += 1; by_m_c[(m, c_)] += 1
     fun_t[t]['CV'] += 1; fun_c[c_]['CV'] += 1; fun_l[lab]['CV'] += 1
     for k, i in flags.items():
@@ -301,7 +355,7 @@ fk = ['CV'] + list(flags)
 sheet('07c_実績_商談への進み方', ['区分', '値'] + fk + ['SAL率', 'SQL1率'],
       [['CVタイプ', t] + [fun_t[t][k] for k in fk] + [pct(fun_t[t]['SAL'], fun_t[t]['CV']), pct(fun_t[t]['SQL1'], fun_t[t]['CV'])] for t in tt] +
       [['流入チャネル', c_] + [fun_c[c_][k] for k in fk] + [pct(fun_c[c_]['SAL'], fun_c[c_]['CV']), pct(fun_c[c_]['SQL1'], fun_c[c_]['CV'])] for c_ in cl],
-      [12, 18] + [9] * (len(fk) + 2), 'CVタイプ・流入チャネル別の、SAL／SQL／提案／受注／辞退／失注の件数（記入のあるものを数えた）と、CVに対するSAL率・SQL1率。')
+      [12, 18] + [9] * (len(fk) + 2), '（SCH・MED・UNは「SQL」が1列のため、SQL1＝SQLとして数える）CVタイプ・流入チャネル別の、SAL／SQL／提案／受注／辞退／失注の件数（記入のあるものを数えた）と、CVに対するSAL率・SQL1率。')
 
 fk2 = ['CV'] + list(flags)
 sheet('07d_実績_CVの元（メルマガCTA別）', ['CVの元（メルマガ番号・CTA名・資料名）'] + fk2, [[lab] + [fun_l[lab][k] for k in fk2] for lab, _ in sorted(fun_l.items(), key=lambda x: -x[1]['CV'])],
@@ -332,8 +386,54 @@ for ym in sorted(lp):
     th_rows.append([ym, disp.get(ym), lp[ym][0], round(lp[ym][1] / lp[ym][0], 1) if lp[ym][0] else None])
 sheet('09_DSP判定の材料', ['年月', 'Displayのセッション', 'DSP流入のLPセッション', 'DSP流入の1セッションあたり滞在(秒)'], th_rows, [10, 18, 20, 26],
       'DSP広告の目的＝認知アップ・エンゲージメントアップ。中島さんの考える判定項目：①セッション数 ②LPの直帰率の低下 ③LPの滞在時間の延長。'
-      '【注意】②の直帰率は、現在のダッシュボード／GA4のデータに入っていない（取得項目の追加が必要）。当面は「次ページ遷移率」（月次レポート記載：約15%）とエンゲージメント時間で代替する。'
+      '②の直帰率は、GA4から取得した値を 10_DSPエンゲージメント月次 に載せた（2026-11-25取得。ただし2026年4月に全サイトで計測が変わっているため、3月以前とは比べられない：10c参照）。「次ページ遷移率」（月次レポート記載：約15%）は、閲覧ページ数／セッションで代替する。'
       '閾値の数値は未決（この表の推移を見て決める）。')
+
+ENG_JSON = r'C:\Users\612316\Box\【個人】612316_中島　麻耶\10_data\dsp_dashboard_auto.json'
+if C['has_dsp'] and os.path.exists(ENG_JSON):
+    _d = json.load(open(cp(ENG_JSON, 'dsp_auto.json'), encoding='utf-8'))
+    _g = _d['ga4'][C['ga_site']]
+    _e = _g.get('engagement') or {}
+    if _e and 'error' not in _e:
+        _gen = _d.get('generated', '')[:10]
+        _src = f'出どころ：Apps Script（GA4）が作ったJSON dsp_dashboard_auto.json（{_gen}生成。ga4[{C["ga_site"]}].engagement）。'
+        _warn = ('【重要】2026年4月に、全サイト・全チャネルで直帰率が一斉に下がり、閲覧ページ数／セッションがほぼ倍になっている（10c参照）。'
+                 '広告の効果ではなく、GTMタグやGA4の計測の変更（ページ表示の二重計測など）の可能性が高い。'
+                 '3月以前と4月以降は比べない。DSPの直帰率の変化は、4月以降の月だけで見る。')
+        _def = 'GA4の直帰率＝エンゲージしなかったセッションの割合（エンゲージ＝10秒以上の滞在、またはコンバージョン、または2ページ以上の閲覧）。'
+
+        def _eng_row(ym, x):
+            return [ym, x['sessions'], x['engagedSessions'], round(x['bounceRate'], 4), round(x['avgEngagementSec'], 1), round(x['viewsPerSession'], 2)]
+        _dm = sorted([x for x in _e['dspMonthly'] if x['sourceMedium'] == 'admatrix / display'], key=lambda x: x['ym'])
+        sheet('10_DSPエンゲージメント月次', ['年月', 'セッション', 'エンゲージしたセッション', '直帰率', '平均エンゲージメント時間(秒)', '閲覧ページ数/セッション'],
+              [_eng_row(x['ym'], x) + ['4月以降' if x['ym'] >= '2026/04' else '3月以前（比較不可）'] for x in _dm],
+              [10, 11, 20, 9, 24, 20, 22], _src + 'DSP広告（参照元／メディア＝admatrix / display）の月次。' + _def + _warn)
+        ws = wb['10_DSPエンゲージメント月次']; ws.cell(2, 7).value = '計測の区分'
+        _lp = []
+        for ym in sorted({x['ym'] for x in _e['dspLanding'] if x['ym'] >= '2026/04'}):
+            for x in sorted([y for y in _e['dspLanding'] if y['ym'] == ym and y['sourceMedium'] == 'admatrix / display'], key=lambda y: -y['sessions'])[:5]:
+                _lp.append([ym, x['page'], x['sessions'], x['engagedSessions'], round(x['bounceRate'], 4), round(x['avgEngagementSec'], 1), round(x['viewsPerSession'], 2)])
+        sheet('10b_DSP_LP別エンゲージメント', ['年月', 'ランディングページ', 'セッション', 'エンゲージしたセッション', '直帰率', '平均エンゲージメント時間(秒)', '閲覧ページ数/セッション'],
+              _lp, [10, 44, 11, 20, 9, 24, 20],
+              _src + 'DSP広告流入のランディングページ別（4月以降。月ごとにセッション上位5ページ）。' + _def + '「(not set)」はページが特定できないセッション。')
+        _chk = []
+        for ym in ['2026/02', '2026/03', '2026/04', '2026/05', '2026/06']:
+            _a = [x for x in _e['monthly'] if x['ym'] == ym]
+            row = [ym]
+            if _a:
+                row += [_a[0]['sessions'], round(_a[0]['bounceRate'], 4), round(_a[0]['viewsPerSession'], 2)]
+            for ch in ['Organic Search', 'Direct', 'Email']:
+                _c = [x for x in _e['channelMonthly'] if x['ym'] == ym and x['ch'] == ch]
+                row += [round(_c[0]['bounceRate'], 4) if _c and _c[0]['sessions'] >= 30 else None, round(_c[0]['viewsPerSession'], 2) if _c and _c[0]['sessions'] >= 30 else None]
+            _chk.append(row)
+        sheet('10c_計測変更の確認', ['年月', 'サイト全体セッション', 'サイト全体の直帰率', 'サイト全体の閲覧/セッション', 'Organic Search 直帰率', 'Organic Search 閲覧/セッション',
+                                    'Direct 直帰率', 'Direct 閲覧/セッション', 'Email 直帰率', 'Email 閲覧/セッション'], _chk, [10, 14, 14, 18, 16, 20, 12, 18, 12, 18],
+              _src + '2026年3月→4月で、DSP以外のチャネル（Organic Search・Direct・Email）も同時に直帰率が下がり、閲覧ページ数が増えている。UN・MEDのサイトも同じ。'
+              '→広告ではなく計測の変更の可能性が高い（GTM・GA4の変更履歴の確認が必要）。')
+
+if not C['has_dsp']:
+    for _n in ['05_DSP広告_月次', '05b_DSP_PC・SP別', '05c_DSP_クリエイティブ別', '06b_DSP流入のLP別', '09_DSP判定の材料']:
+        del wb[_n]
 
 # ---------------------------------------------------------------- 00 概要（先頭に置く）
 ov = wb.create_sheet('00_概要', 0)
@@ -351,7 +451,8 @@ lines = [
     '  06 サイトGA4/GSC：チャネル別・DSP流入のLP別・ページ別・検索クエリ',
     '  07 実績CV：実績.xlsm（CVリスト）を件数だけ集計。CVタイプ・流入チャネル別の商談への進み方',
     '  08 既存施策の件数：重複を避けるための現状',
-    '  09 DSP判定の材料：セッション・滞在時間（直帰率はデータなし）',
+    '  09 DSP判定の材料：セッション・滞在時間（直帰率は10を参照）',
+    '  10 DSPエンゲージメント：直帰率・平均エンゲージメント時間・閲覧ページ数（GA4。4月以降のみ比較可）',
     '',
     '根拠の扱い（すべて「弱い」で出す：中島さん確認済み）',
     '  ・ROIと月次レポートの数字は同じ出どころ（ROIダッシュボード）。根拠は1つと数える。',
@@ -361,6 +462,31 @@ lines = [
     'AIの役割の切り分け（提案。確認待ち）：A 整理（材料にある所見・数字をそのまま候補に）／B 分析（数字から読み取った示唆）／C 新規発案（材料にない新しい施策案）。',
     '出所の表記：A＝月次レポート／ROI／GEO／DSP、B＝AI分析、C＝AI発案。候補の根拠の強さはすべて「弱い」。',
 ]
+if BIZ != 'IS':
+    lines = [
+        f'AI分析用 集計表（{BIZ}）  作成日 {TODAY}',
+        '',
+        '目的：AI（Claude）に渡す材料の確認と、渡す元データそのもの。個人情報（氏名・メール・会社名・電話・受注／SAL／SQL企業名）は含めていない。',
+        f'範囲：{BIZ}。DSP広告はSCHとISの2事業のみ' + ('（この事業はDSP広告の実施あり）。' if C['has_dsp'] else '（この事業はDSP広告なし。DSPのシートは出さない）。'),
+        '',
+        'シート一覧',
+        '  01 ROI月次：セッション・MQL・SAL・SQL・受注と目標（2026-10まで）',
+        f'  02 月次レポート所見：10月号の{BIZ}（人が書いた所見・示唆を含む。社名は除外）',
+        f'  03 GEO設問別：{GEO_LABEL}の質問・回答全文・出現有無・出た企業名。03b 推移、04 定型文（現状のまま）',
+    ] + (['  05 DSP広告：配信実績（月次・PC/SP別・素材別）。最新ダッシュボードより'] if C['has_dsp'] else []) + [
+        '  06 サイトGA4/GSC：チャネル別・ページ別・検索クエリ' + ('・DSP流入のLP別' if C['has_dsp'] else ''),
+        '  07 実績CV：実績.xlsm（CVリスト）を件数だけ集計。CVタイプ・流入チャネル別の商談への進み方',
+        '  08 既存施策の件数：重複を避けるための現状',
+    ] + (['  09 DSP判定の材料：セッション・滞在時間（直帰率は10を参照）', '  10 DSPエンゲージメント：直帰率・平均エンゲージメント時間・閲覧ページ数（GA4。2026年4月に計測が変わっており、4月以降のみ比較可）'] if C['has_dsp'] else []) + [
+        '',
+        '根拠の扱い（すべて「弱い」で出す：中島さん確認済み）',
+        '  ・ROIと月次レポートの数字は同じ出どころ（ROIダッシュボード）。根拠は1つと数える。',
+        '  ・GEOは1モデル・質問が少ないため「弱い：件数が少ない」。',
+        '  ・各候補の根拠に、シート名・期間・数字を必ず書く。',
+        '',
+        'AIの役割の区分：A 整理（材料にある所見・数字をそのまま候補に）／B 分析（数字から読み取った示唆）／C 新規発案（材料にない新しい施策案。1事業5件まで）。',
+        '出所の表記：A＝月次レポート／ROI／GEO／DSP、B＝AI分析、C＝AI発案。候補の根拠の強さはすべて「弱い」。',
+    ]
 for i, t in enumerate(lines, 1):
     c = ov.cell(i, 1, t)
     if i == 1:
