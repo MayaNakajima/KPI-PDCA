@@ -197,25 +197,26 @@ table.sh a.sh-link{color:#1155cc;text-decoration:underline;cursor:pointer}
   <span class="hdr-badge" id="fyBadge">今期 —</span>
   <span class="dot-unsaved" id="unsavedDot" title="未保存"></span>
   <div class="hdr-sp"></div>
-  <button class="hdr-btn hdr-btn-ghost" onclick="openImport()">📥 取込</button>
   <button class="hdr-btn hdr-btn-ghost" onclick="exportJSON()">💾 保存(JSON)</button>
-  <button class="hdr-btn hdr-btn-ghost" onclick="openBackupModal()">🗄 バックアップ設定</button>
-  <button class="hdr-btn hdr-btn-ghost" onclick="openNotifyModal()">🔔 通知設定</button>
   <button class="hdr-btn hdr-btn-primary" onclick="openDlModal()">⬇ Excel出力</button>
 </div>
 <div class="org-bar" id="orgBar"></div>
 <div class="main">
   <div class="view-tabs" id="viewTabs">
-    <div class="view-tab active" data-v="dash">📊 全体サマリー</div>
-    <div class="view-tab" data-v="shisakuKpi">🎯 施策別KPI</div>
-    <div class="view-tab" data-v="shisaku">📋 施策管理</div>
-    <div class="view-tab" data-v="tree">🌳 KPIツリー</div>
-    <div class="view-tab" data-v="pdca">🔁 PDCAボード</div>
-    <div class="view-tab" data-v="data">🗂️ データ管理</div>
+    <div class="view-tab active" data-v="shisaku">📗 施策管理表</div>
+    <div class="view-tab" data-v="pdca">🔁 PDCA</div>
+    <div class="view-tab" data-v="kpi">📊 KPI・成果</div>
+    <div class="view-tab" data-v="data">⚙ データ・設定</div>
   </div>
+  <!-- KPI・成果タブの中の切り替え（全体サマリー／施策別KPI／KPIツリー） -->
+  <div id="kpiSubBar" class="hidden" style="margin-bottom:12px"><div class="sub-tabs" style="display:inline-flex">
+    <div class="sub-tab active" data-ks="dash" onclick="setKpiSub('dash')">📊 全体サマリー</div>
+    <div class="sub-tab" data-ks="shisakuKpi" onclick="setKpiSub('shisakuKpi')">🎯 施策別KPI</div>
+    <div class="sub-tab" data-ks="tree" onclick="setKpiSub('tree')">🌳 KPIツリー</div>
+  </div></div>
 
   <!-- DASH -->
-  <div id="view-dash">
+  <div id="view-dash" class="hidden">
     <div class="card card-pad" style="margin-bottom:16px">
       <div class="section-note" id="dashNote"></div>
       <div class="kpi-row" id="kpiRow"></div>
@@ -249,7 +250,7 @@ table.sh a.sh-link{color:#1155cc;text-decoration:underline;cursor:pointer}
   </div>
 
   <!-- SHISAKU MANAGEMENT -->
-  <div id="view-shisaku" class="hidden">
+  <div id="view-shisaku">
     <div class="toolbar">
       <input type="text" id="smSearch" placeholder="検索（No・内容・担当など）" style="width:220px" oninput="renderShisakuMgmt()">
       <div class="msel sm-nonsheet" id="mselWrap-daibunrui"><button class="btn btn-ghost btn-sm" onclick="toggleMselPanel('daibunrui')"><span id="mselLabel-daibunrui">大分類：すべて</span> ▾</button><div class="msel-panel hidden" id="mselPanel-daibunrui"></div></div>
@@ -307,7 +308,7 @@ table.sh a.sh-link{color:#1155cc;text-decoration:underline;cursor:pointer}
     <div class="card card-pad" style="margin-bottom:14px">
       <div class="sec-title">🌳 チャネル別（大分類）セッションKPI ＜目標＝KPIツリー2026／実績＝手動入力＞</div>
       <div class="tbl-wrap" style="max-height:none"><table id="treeChTbl"></table></div>
-      <div class="legend" style="margin-top:8px"><span class="muted">行の「▶」でページ種別（小分類：TOP/事例/コラム/LP/その他）の内訳を開閉。実績は「データ管理」→「チャネル/ページ別セッション実績」で入力してください。</span></div>
+      <div class="legend" style="margin-top:8px"><span class="muted">行の「▶」でページ種別（小分類：TOP/事例/コラム/LP/その他）の内訳を開閉。実績は「データ・設定」→「チャネル/ページ別セッション実績」で入力してください。</span></div>
     </div>
     <div class="card card-pad">
       <div class="sec-title">📅 月次明細（数値管理用フォーマット） <select id="treeMonCh" style="margin-left:auto" onchange="renderTreeMonthly()"></select></div>
@@ -317,6 +318,16 @@ table.sh a.sh-link{color:#1155cc;text-decoration:underline;cursor:pointer}
 
   <!-- DATA -->
   <div id="view-data" class="hidden">
+    <div class="card card-pad" style="margin-bottom:14px">
+      <div class="sec-title">⚙ 取込・設定</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-primary btn-sm" onclick="openImport()">📥 取込（施策管理表・本数管理・実績ファイル・JSON）</button>
+        <button class="btn btn-ghost btn-sm" onclick="openBackupModal()">🗄 バックアップ設定</button>
+        <button class="btn btn-ghost btn-sm" onclick="openNotifyModal()">🔔 通知設定</button>
+        <span class="muted" style="font-size:11px">施策管理表の差分は「取込」から施策管理表.xlsx を選んで取り込みます（No.＋何件目かで突き合わせ）</span>
+      </div>
+    </div>
+    <div class="sec-title" style="margin-bottom:6px">🗂️ データの直接入力</div>
     <div class="toolbar">
       <span class="filter-lbl">編集対象</span>
       <select id="dataMode" onchange="renderDataView()">
@@ -507,7 +518,7 @@ function mergeMasterList(key,vals){
 function escHtml(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function safeUrl(u){if(!u)return null;u=String(u).trim();return /^https?:\/\//i.test(u)?u:null;}
 ensureShisakuMasters();
-let ST = { biz:'ALL', mFrom:0, mTo:11, view:'dash', editId:null };
+let ST = { biz:'ALL', mFrom:0, mTo:11, view:'shisaku', kpiSub:'dash', editId:null };
 let charts = {};
 const BIZ4=['UN','SCH','MED','IS'];
 const FUNNEL=DATA.funnel;
@@ -583,12 +594,24 @@ function initUI(){
   stt.onchange=()=>{ST.mTo=+stt.value;if(ST.mTo<ST.mFrom){ST.mFrom=ST.mTo;sf.value=ST.mFrom;}renderAll();};
   fg.appendChild(sf);const sep=document.createElement('span');sep.className='range-sep';sep.textContent='〜';fg.appendChild(sep);fg.appendChild(stt);
   const sp=document.createElement('div');sp.className='org-bar-sp';ob.appendChild(sp);ob.appendChild(fg);
-  document.querySelectorAll('.view-tab').forEach(t=>{t.onclick=()=>{ST.view=t.dataset.v;document.querySelectorAll('.view-tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');document.querySelectorAll('[id^=view-]').forEach(v=>v.classList.add('hidden'));document.getElementById('view-'+ST.view).classList.remove('hidden');renderAll();};});
+  document.querySelectorAll('.view-tab').forEach(t=>{t.onclick=()=>showView(t.dataset.v);});
   const tm=document.getElementById('trendMetric');tm.innerHTML='';FUNNEL.forEach(f=>tm.innerHTML+=`<option value="${f[0]}">${f[1]}</option>`);tm.value='mql';
 }
+/* 画面（タブ）の切り替え。KPI・成果タブは中で 全体サマリー／施策別KPI／KPIツリー を切り替える */
+function showView(v){
+  ST.view=v;const ks=ST.kpiSub||'dash';
+  document.querySelectorAll('.view-tab').forEach(x=>x.classList.toggle('active',x.dataset.v===v));
+  document.querySelectorAll('[id^=view-]').forEach(el=>el.classList.add('hidden'));
+  document.getElementById('kpiSubBar').classList.toggle('hidden',v!=='kpi');
+  document.querySelectorAll('#kpiSubBar .sub-tab').forEach(x=>x.classList.toggle('active',x.dataset.ks===ks));
+  const el=document.getElementById('view-'+(v==='kpi'?ks:v));if(el)el.classList.remove('hidden');
+  renderAll();
+}
+function setKpiSub(k){ST.kpiSub=k;showView('kpi');}
 function renderAll(){
   document.body.classList.toggle('sheet-wide',ST.view==='shisaku'&&ST.smSub==='sheet');
-  if(ST.view==='dash')renderDash();
+  if(ST.view==='kpi'){const k=ST.kpiSub||'dash';if(k==='dash')renderDash();else if(k==='shisakuKpi')renderShisakuKpi();else renderTree();}
+  else if(ST.view==='dash')renderDash();
   else if(ST.view==='shisakuKpi')renderShisakuKpi();
   else if(ST.view==='shisaku')renderShisakuMgmt();
   else if(ST.view==='pdca'){initBoardFilters();renderBoard();}
