@@ -280,6 +280,7 @@ table.sh a.sh-link{color:#1155cc;text-decoration:underline;cursor:pointer}
         <button class="btn btn-green btn-sm" onclick="shAddRow()">＋行を追加</button>
         <button class="btn btn-ghost btn-sm" id="shPanelBtn" onclick="shTogglePanel()">📄 詳細パネル</button>
         <button class="btn btn-ghost btn-sm" id="shPendBtn" onclick="shTogglePending()" title="状態が「候補」の行だけを表示／もとのシートに戻す">⏳ 採否待ち（0）</button>
+        <button class="btn btn-green btn-sm" onclick="shAddCandidateRow()" title="施策の候補（状態＝候補）を最終行に追加します。採否の定例で採用すると、通常の施策になります">＋候補を追加</button>
         <button class="btn btn-ghost btn-sm" onclick="shClearSort()">並べ替えを解除</button>
         <button class="btn btn-ghost btn-sm" onclick="shClearFilters()">フィルタをすべて解除</button>
         <span class="sh-fs" id="shFs"><b>文字サイズ</b><span data-fs="s" onclick="shSetFs('s')">S</span><span data-fs="m" onclick="shSetFs('m')">M</span><span data-fs="l" onclick="shSetFs('l')">L</span></span>
@@ -1016,6 +1017,9 @@ const SH_NEW=[
  {label:'次の一手',f:'nextAct',t:'long',w:30,grp:'pdca'},
  {label:'サイクル数',f:'cycleNo',t:'text',w:9,grp:'pdca'},
  {label:'親施策No',f:'parentNo',t:'text',w:9,grp:'pdca'},
+ {label:'出所',f:'proposedFrom',t:'list',w:11,grp:'pdca',opts:['PDCA記録','手動','GEO','ROI','DSP','AI分析','AI次の一手']},
+ {label:'提案日',f:'proposedDate',t:'date',w:12,grp:'pdca'},
+ {label:'根拠',f:'evidence',t:'long',w:30,grp:'pdca'},
  {label:'採否',f:'adopt',t:'text',w:8,grp:'adopt',ro:true},
  {label:'採否の理由',f:'adoptReason',t:'long',w:28,grp:'adopt',ro:true},
  {label:'決定日',f:'adoptDate',t:'date',w:12,grp:'adopt',ro:true},
@@ -1350,6 +1354,28 @@ function shAddRow(){
   const r=SH.rows.length-1;shSelect(r,1);shEnsureVisible(r,1);document.getElementById('shEd').focus({preventScroll:true});
   toast('行を追加しました：'+biz+' No.'+s.no);
 }
+/* 候補行の作成（共通資料 5-2）。状態＝候補・No＝連番・提案日・出所を付けて、その事業シートの最終行に追加する。
+   PDCA記録の「新規作成」・「＋候補を追加」・「次サイクルの候補」から使う（将来のバッチ／AI分析の取込も同じ項目を使う） */
+function shNewCandidate(biz,o){
+  const d=new Date(),today=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const s=Object.assign({no:nextShisakuNo(biz),source:'app',status:'候補',proposedFrom:'手動',proposedDate:today,updatedAt:d.toISOString()},o||{});
+  DATA.shisaku[biz]=DATA.shisaku[biz]||[];DATA.shisaku[biz].push(s);
+  SH.undo.push([{type:'add',biz,s}]);SH.redo=[];markUnsaved();
+  return s;
+}
+/* シートの「＋候補を追加」／詳細パネルの「次サイクルの候補を追加」。parent を渡すと親施策No・関連施策No・サイクル数を入れる */
+function shAddCandidateRow(parent){
+  if(SH.editing)shCommit();
+  const o={};
+  if(parent){const pn=String(parent.no||'');o.parentNo=pn;o.kanren=pn;o.cycleNo=String((parseInt(parent.cycleNo,10)||1)+1);}
+  const s=shNewCandidate(SH.sheet,o);
+  SH.pending=true;SH.r=SH.c=SH.er=SH.ec=0;renderShisakuSheet();
+  const r=SH.rows.indexOf(s),ci=SH.cols.findIndex(c=>c.f==='naiyo');
+  if(r>=0){shSelect(r,ci);shEnsureVisible(r,ci);}
+  if(!SH.panel)shTogglePanel(true);
+  document.getElementById('shEd').focus({preventScroll:true});
+  toast('候補を追加しました：'+SH.sheet+' No.'+s.no+'（「採否待ち」に表示中。施策内容・根拠などを記入してください）');
+}
 /* 詳細パネルからの行の操作（No.が重複していても、選んだ行だけを操作する） */
 function shRowOp(op){
   const s=SH.panelRow||SH.rows[SH.r];if(!s)return;
@@ -1397,6 +1423,7 @@ function shRenderPanel(){
     <div class="sh-pf"><label>施策タイプ</label><div><select id="shType"><option value="">（未設定）</option><option ${type==='単発完了型'?'selected':''}>単発完了型</option><option ${type==='継続改善型'?'selected':''}>継続改善型</option></select></div></div>
     ${pd.length?pd.map(x=>`<div class="sh-pdca"><b>${escHtml(x.date||'')}</b>　判定：${escHtml(x.judge||'—')}　期限：${escHtml(x.due||'—')}<br>結果：${escHtml(trunc(x.result||'—',60))}<br>次の一手：${escHtml(trunc(x.act||'—',60))}<div style="text-align:right"><button class="btn btn-ghost btn-sm" onclick="editPdca('${escHtml(String(x.id)).replace(/'/g,"\\'")}')">開く・編集</button></div></div>`).join(''):'<div class="muted" style="font-size:11px;margin:6px 0">この施策のPDCA記録はまだありません</div>'}
     <button class="btn btn-ghost btn-sm" onclick="openPdcaFrom('${biz}','${qno}')">＋この施策のPDCAを記録</button>
+    <button class="btn btn-ghost btn-sm" onclick="shAddCandidateRow(SH.panelRow)" title="この施策を親とする候補の行を、シートの最終行に追加します">＋次サイクルの候補を追加</button>
     ${grpF('PDCAの記入項目（アプリで追加）','#C7D2FE',c=>c.isNew&&c.grp!=='adopt'&&c.f!=='shisakuType')}
     ${isCand?'':adoptHtml}
     ${grp('P/A（計画）',SH_C.pa,0,3)}${grp('D（実行）',SH_C.d,4,16)}${grp('C（検証）',SH_C.c,17,shBaseCount()-1)}
@@ -1759,11 +1786,17 @@ function savePdca(){const b=curBiz();const __ki=document.getElementById('pKpiSel
   const rec={id:ST.editId||('P'+Date.now()),biz:b,date:new Date().toISOString().slice(0,10),cat:document.getElementById('pCat').value,baseNo:document.getElementById('pShisaku').value,issue:document.getElementById('pIssue').value,act:document.getElementById('pAct').value,criteria:document.getElementById('pCriteria').value,kpi:(__kSel?__kSel.label:''),kpiSel:__kSel,baseVal:document.getElementById('pBaseVal').value,targetVal:document.getElementById('pTargetVal').value,goal:document.getElementById('pGoal').value,due:document.getElementById('pDue').value,owner:document.getElementById('pOwner').value,result:document.getElementById('pResult').value,judge:document.getElementById('pJudge').value,memo:document.getElementById('pMemo').value,
     successorNo:(sucSel&&sucSel!=='__new')?sucSel:'',successorName:(sucSel==='__new')?sucNew:''};
   if(!rec.act&&!rec.issue){toast('課題または改善案を入力してください');return;}
-  // 新規引き継ぎ施策を登録（施策管理表に無いもの・No後付け）
-  DATA.newShisaku=DATA.newShisaku||[];
-  if(rec.successorName){DATA.newShisaku.push({id:'N'+Date.now(),biz:b,cat:rec.cat||'',name:rec.successorName,no:'',fromPdca:rec.id});}
+  // 新規の引き継ぎ施策は、施策管理表（シート）の最終行に「候補」の行として追加する（採否待ち。同じPDCA記録から二重に作らない）
+  let addedCand=null;
+  if(rec.successorName&&BIZ4.includes(b)){
+    const oid='PDCA-'+rec.id;
+    if(!(DATA.shisaku[b]||[]).some(x=>x.originId===oid)){
+      const par=(DATA.shisaku[b]||[]).find(x=>String(x.no)===String(rec.baseNo));
+      addedCand=shNewCandidate(b,{naiyo:rec.successorName,mokuteki:rec.issue||null,evidence:[rec.issue?('課題：'+rec.issue):'',rec.act?('改善案：'+rec.act):''].filter(Boolean).join('\n')||null,proposedFrom:'PDCA記録',originId:oid,parentNo:rec.baseNo||null,kanren:rec.baseNo||null,cycleNo:par?String((parseInt(par.cycleNo,10)||1)+1):null,cat:rec.cat||null,tanto:rec.owner||null,check:rec.due||null,verifyKind:rec.kpi||null});
+    }
+  }
   if(ST.editId){const i=DATA.pdca.findIndex(p=>p.id===ST.editId);if(i>=0)DATA.pdca[i]=rec;}else DATA.pdca.push(rec);
-  markUnsaved();closePdcaModal();if(ST.view==='pdca')renderBoard();toast('PDCA案を記録しました'+(rec.successorName?'（引き継ぎ施策をPlanに追加）':''));return rec.id;}
+  markUnsaved();closePdcaModal();if(ST.view==='pdca')renderBoard();toast('PDCA案を記録しました'+(addedCand?'（'+b+' No.'+addedCand.no+' を候補として施策管理表に追加。「採否待ち」で確認できます）':''));return rec.id;}
 function clearPdcaForm(){['pIssue','pAct','pCriteria','pGoal','pBaseVal','pTargetVal','pDue','pOwner','pResult','pMemo','pSucNew'].forEach(id=>document.getElementById(id).value='');const __pk=document.getElementById('pKpiSel');if(__pk)__pk.value='';const __pu=document.getElementById('pTargetUnit');if(__pu)__pu.textContent='';document.getElementById('pJudge').value='';const ss=document.getElementById('pSucSel');if(ss)ss.value='';onSucSel();ST.editId=null;document.getElementById('editingBadge').classList.add('hidden');}
 function editPdca(id){const p=DATA.pdca.find(x=>x.id===id);if(!p)return;ST.biz=p.biz;initUI();openPdcaModal();ST.editId=id;document.getElementById('pmTitle').textContent='PDCA案の編集';document.getElementById('pCat').value=p.cat||'';fillShisakuSelect();document.getElementById('pShisaku').value=p.baseNo||'';showBaseShisaku();document.getElementById('pIssue').value=p.issue||'';document.getElementById('pAct').value=p.act||'';document.getElementById('pCriteria').value=p.criteria||'';selectPKpi(p.kpiSel);document.getElementById('pBaseVal').value=p.baseVal||'';document.getElementById('pTargetVal').value=p.targetVal||'';document.getElementById('pGoal').value=p.goal||'';document.getElementById('pDue').value=p.due||'';document.getElementById('pOwner').value=p.owner||'';document.getElementById('pResult').value=p.result||'';document.getElementById('pJudge').value=p.judge||'';document.getElementById('pMemo').value=p.memo||'';
   const ss=document.getElementById('pSucSel');if(p.successorName){ss.value='__new';document.getElementById('pSucNew').value=p.successorName;}else{ss.value=p.successorNo||'';document.getElementById('pSucNew').value='';}onSucSel();
@@ -1865,7 +1898,7 @@ function mergeShisakuImport(biz,importedRecs){
   return conflicts;
 }
 /* Excelにない、アプリだけで持つ項目（Excel版で置き換えても消さない） */
-const SHISAKU_APP_ONLY_KEYS=['shisakuType','originId','targetUrl','verifyKind','baseVal','verifyVal','verifyDate','judge','nextAct','cycleNo','parentNo','adopt','adoptReason','adoptDate','adoptBy'];
+const SHISAKU_APP_ONLY_KEYS=['shisakuType','originId','targetUrl','verifyKind','baseVal','verifyVal','verifyDate','judge','nextAct','cycleNo','parentNo','proposedFrom','proposedDate','evidence','adopt','adoptReason','adoptDate','adoptBy'];
 function shisakuAppOnly(rec){const o={};if(rec)SHISAKU_APP_ONLY_KEYS.forEach(k=>{if(rec[k]!=null)o[k]=rec[k];});return o;}
 let PENDING_CONFLICTS=[];
 function kpiSetsKey(rec){const a=(rec.kpiSets||[]).map(x=>[x.kpi||null,x.goal||null,x.actual||null,x.actualExtra||null]);while(a.length&&a[a.length-1].every(v=>v==null))a.pop();return JSON.stringify(a);}
