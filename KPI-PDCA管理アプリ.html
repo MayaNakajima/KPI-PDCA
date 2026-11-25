@@ -118,11 +118,6 @@ input[type=text],input[type=number],input[type=date],select.wide{width:100%}
 .sub-tabs{display:flex;gap:2px;background:#fff;border:1px solid var(--border);border-radius:8px;padding:3px;flex-shrink:0}
 .sub-tab{padding:5px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
 .sub-tab.active{background:var(--navy);color:#fff}.sub-tab:hover:not(.active){color:var(--blue)}
-#smTbl th sub{font-size:9px;font-weight:700}
-/* 施策管理タブ 一覧：表示密度を上げ、列幅は内容基準・横スクロール可、操作ボタンは1行 */
-#smTbl th,#smTbl td{padding:3px 8px;white-space:nowrap;vertical-align:middle}
-#smTbl td .btn-sm{white-space:nowrap}
-#smTableWrap{overflow:auto}
 /* PDCA足場：要仕分け／実績未記入アラート */
 .triage-panel{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:10px}
 .triage-hd{font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:8px}
@@ -262,19 +257,14 @@ table.sh a.sh-link{color:#1155cc;text-decoration:underline;cursor:pointer}
       <div class="msel sm-nonsheet" id="mselWrap-cat"><button class="btn btn-ghost btn-sm" onclick="toggleMselPanel('cat')"><span id="mselLabel-cat">種類：すべて</span> ▾</button><div class="msel-panel hidden" id="mselPanel-cat"></div></div>
       <div class="msel sm-nonsheet" id="mselWrap-status"><button class="btn btn-ghost btn-sm" onclick="toggleMselPanel('status')"><span id="mselLabel-status">状態：すべて</span> ▾</button><div class="msel-panel hidden" id="mselPanel-status"></div></div>
       <div class="msel sm-nonsheet" id="mselWrap-tanto"><button class="btn btn-ghost btn-sm" onclick="toggleMselPanel('tanto')"><span id="mselLabel-tanto">担当：すべて</span> ▾</button><div class="msel-panel hidden" id="mselPanel-tanto"></div></div>
-      <button class="btn btn-ghost btn-sm sm-nonsheet" onclick="openColToggle()">列の表示切替</button>
       <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer"><input type="checkbox" id="smShowDeleted" onchange="renderShisakuMgmt()">削除候補を表示</label>
-      <button class="btn btn-green btn-sm sm-nonsheet" onclick="openSmEdit(curBiz(),null)">＋新規施策</button>
       <span class="org-bar-sp"></span>
       <div class="sub-tabs" id="viewShisakuSubTabs">
         <div class="sub-tab active" data-sv="sheet" onclick="setShisakuSubView('sheet')">📗 シート</div>
-        <div class="sub-tab" data-sv="table" onclick="setShisakuSubView('table')">📋 一覧</div>
         <div class="sub-tab" data-sv="card" onclick="setShisakuSubView('card')">🗂 カード</div>
       </div>
     </div>
     <div class="section-note" id="smNote"></div>
-    <div id="smColPanel" class="card card-pad hidden" style="margin-bottom:10px"></div>
-    <div id="smTableWrap" class="tbl-wrap" style="max-height:640px"><table id="smTbl"></table></div>
     <div id="smCardWrap" class="sk-grid hidden"></div>
     <div id="smSheetWrap" class="hidden">
       <div class="sh-bar">
@@ -415,53 +405,6 @@ table.sh a.sh-link{color:#1155cc;text-decoration:underline;cursor:pointer}
     <div style="display:flex;align-items:center;gap:8px"><select id="dlFrom" class="wide"></select><span class="range-sep">〜</span><select id="dlTo" class="wide"></select></div>
   </div>
   <div class="modal-ft"><button class="btn btn-ghost" onclick="closeDlModal()">キャンセル</button><button class="btn btn-green" onclick="runExport()">⬇ 出力</button></div>
-</div></div>
-
-<!-- SHISAKU CARD MODAL -->
-<div class="modal-bg" id="smCardModal"><div class="modal" style="width:720px">
-  <div class="modal-hd"><span id="smCardTitle">施策詳細</span><span style="cursor:pointer" onclick="closeSmCard()">✕</span></div>
-  <div class="modal-bd" id="smCardBody"></div>
-  <div class="modal-ft"><button class="btn btn-ghost" onclick="closeSmCard()">閉じる</button><button class="btn btn-primary" id="smCardEditBtn" onclick="closeSmCard();openSmEdit(this.dataset.biz,this.dataset.no)">編集</button></div>
-</div></div>
-
-<!-- SHISAKU EDIT MODAL (F2: 新規/編集) -->
-<div class="modal-bg" id="smEditModal"><div class="modal" style="width:760px">
-  <div class="modal-hd"><span id="smEditTitle">施策の編集</span><span style="cursor:pointer" onclick="closeSmEdit()">✕</span></div>
-  <div class="modal-bd">
-    <div class="form-grid">
-      <label>事業</label><select id="seBiz" class="wide"></select>
-      <label>No.</label><div id="seNo" class="muted" style="padding-top:7px">（保存時に自動採番）</div>
-      <label>大分類</label><input type="text" id="seDaibunrui" class="wide" list="mDaibunrui">
-      <label>課題・目的</label><textarea id="seMokuteki" class="wide"></textarea>
-      <label>関連施策No</label><input type="text" id="seKanren" class="wide">
-      <label>手法</label><input type="text" id="seMethod" class="wide" list="mMethod">
-      <label>施策種類</label><input type="text" id="seCat" class="wide" list="mCat">
-      <label>施策内容</label><textarea id="seNaiyo" class="wide"></textarea>
-      <label>担当</label><input type="text" id="seTanto" class="wide">
-      <label>事例会社</label><input type="text" id="seJirei" class="wide">
-      <label>コラム/メルマガ/WP No</label>
-      <div style="display:flex;gap:6px"><input type="text" id="seColumnNo" placeholder="コラムNo" style="width:33%"><input type="text" id="seMailNo" placeholder="メルマガNo" style="width:33%"><input type="text" id="seWpNo" placeholder="WPNo" style="width:33%"></div>
-      <label>backlog URL</label><input type="text" id="seBacklog" class="wide" placeholder="https://...">
-      <label>優先順位</label><input type="text" id="sePriority" class="wide" list="mPriority">
-      <label>状態</label><input type="text" id="seStatus" class="wide" list="mStatus">
-      <label>施策タイプ<br><span class="muted" style="font-weight:400;font-size:10px">PDCAの回し方の仕分け</span></label>
-      <select id="seShisakuType" class="wide">
-        <option value="">未設定</option>
-        <option value="単発完了型">単発完了型（一度きりの実施で目標達成なら完了）</option>
-        <option value="継続改善型">継続改善型（CVR改善など継続的にPDCAを回す）</option>
-      </select>
-      <label>着手日</label><input type="date" id="seStartDate">
-      <label>公開/配信/実施日</label><input type="date" id="seRelease">
-      <label>検証日</label><input type="date" id="seCheck">
-      <label class="full">KPIセット（最大4組）</label>
-      <div class="full" id="seKpiSets"></div>
-      <div class="full"><button class="btn btn-ghost btn-sm" onclick="addSeKpiRow()">＋KPIを追加</button></div>
-    </div>
-    <datalist id="mDaibunrui"></datalist><datalist id="mMethod"></datalist><datalist id="mCat"></datalist><datalist id="mPriority"></datalist><datalist id="mStatus"></datalist><datalist id="mKpiItems"></datalist>
-  </div>
-  <div class="modal-ft"><span id="seEditingBadge" class="hdr-badge hidden" style="background:#fef3c7;color:#b45309;margin-right:auto"></span>
-    <button class="btn btn-ghost" onclick="closeSmEdit()">キャンセル</button>
-    <button class="btn btn-primary" onclick="saveSmEdit()">保存</button></div>
 </div></div>
 
 <!-- CONFLICT RESOLUTION MODAL (F3) -->
@@ -823,9 +766,10 @@ function smCmpVal(a,b){
 }
 function smList(){
   ensureSmState();
-  let out=[];for(const b of bizList())(DATA.shisaku[b]||[]).forEach(s=>out.push(Object.assign({biz:b},s)));
+  let out=[];for(const b of bizList())(DATA.shisaku[b]||[]).forEach(s=>out.push(Object.assign({biz:b,_ref:s},s)));
   const showDeleted=!!(document.getElementById('smShowDeleted')||{}).checked;
   out=out.filter(s=>showDeleted?!!s.deleteFlag:!s.deleteFlag);
+  if(!ST.smFilters.status.includes('候補'))out=out.filter(s=>s.status!=='候補'); /* 候補は標準の表示に出さない（シートの「採否待ち」で見る） */
   const q=((document.getElementById('smSearch')||{}).value||'').trim().toLowerCase();
   if(q)out=out.filter(s=>[s.no,s.naiyo,s.mokuteki,s.tanto,s.method].some(v=>v&&String(v).toLowerCase().includes(q)));
   if(ST.smFilters.daibunrui.length)out=out.filter(s=>ST.smFilters.daibunrui.includes(s.daibunrui));
@@ -845,40 +789,15 @@ function smSortClick(key,ev){
 }
 function smPillCls(st){const m={'完了':'pill-done','進行中':'pill-prog','保留':'pill-hold','中止':'pill-stop','未着手':'pill-todo','検討中':'pill-todo','レビュー中':'pill-prog','検証中':'pill-prog','遅延':'pill-hold','候補':'pill-todo'};return m[st]||'pill-todo';}
 function smKpiSets(s){const sets=(s.kpiSets&&s.kpiSets.length?s.kpiSets:[{kpi:s.kpi,goal:s.goal,actual:s.actual}]);return sets.filter(k=>k.kpi||k.goal||k.actual);}
-function renderShisakuTable(list){
-  const cols=SM_COLS.filter(c=>ST.smCols[c[0]]);
-  let h='<thead><tr>'+cols.map(c=>{
-    const idx=ST.smSort.findIndex(s=>s.key===c[0]);
-    const arrow=idx>=0?(ST.smSort[idx].dir>0?'▲':'▼')+(ST.smSort.length>1?('<sub>'+(idx+1)+'</sub>'):''):'';
-    return `<th style="cursor:pointer" onclick="smSortClick('${c[0]}',event)">${escHtml(c[1])} ${arrow}</th>`;
-  }).join('')+'<th>操作</th></tr></thead>';
-  let b='<tbody>';
-  if(!list.length)b+=`<tr><td colspan="${cols.length+1}" class="empty">該当する施策がありません</td></tr>`;
-  list.forEach(s=>{
-    b+='<tr>'+cols.map(c=>{
-      let v;
-      if(c[0]==='status')v=s.status?`<span class="pill ${smPillCls(s.status)}">${escHtml(s.status)}</span>`:'—';
-      else if(c[0]==='backlog'){const u=safeUrl(s.backlog);v=u?`<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗開く</a>`:(s.backlog?escHtml(s.backlog):'—');}
-      else v=s[c[0]]!=null&&s[c[0]]!==''?escHtml(trunc(String(s[c[0]]),40)):'—';
-      return `<td class="${['no','priority'].includes(c[0])?'num':''}">${v}</td>`;
-    }).join('')+`<td>${smRowActions(s)}</td></tr>`;
-  });
-  b+='</tbody>';
-  document.getElementById('smTbl').innerHTML=h+b;
-}
-function smRowActions(s){
-  const bz=s.biz,no=String(s.no||'').replace(/'/g,"\\'");
-  if(s.deleteFlag){
-    return `<button class="btn btn-ghost btn-sm" onclick="restoreSm('${bz}','${no}')">復元</button> <button class="btn btn-danger btn-sm" onclick="purgeSm('${bz}','${no}')">完全削除</button>`;
-  }
-  return `<button class="btn btn-ghost btn-sm" onclick="openSmCard('${bz}','${no}')">詳細</button> <button class="btn btn-ghost btn-sm" onclick="openSmEdit('${bz}','${no}')">編集</button> <button class="btn btn-ghost btn-sm" onclick="duplicateSm('${bz}','${no}')">複製</button> <button class="btn btn-danger btn-sm" onclick="deleteSm('${bz}','${no}')">削除</button>`;
-}
+/* カード表示：カード（または「詳細・編集」）をクリックすると、シートの該当行を選んで詳細パネルを開く（複製・削除・復元は詳細パネルで行う） */
+let SM_CARDS=[];
 function renderShisakuCards(list){
   const wrap=document.getElementById('smCardWrap');
+  SM_CARDS=list;
   if(!list.length){wrap.innerHTML='<div class="empty">該当する施策がありません</div>';return;}
-  wrap.innerHTML=list.map(s=>{
+  wrap.innerHTML=list.map((s,i)=>{
     const kSets=smKpiSets(s);
-    return `<div class="sk-card" style="cursor:pointer" onclick="openSmCard('${s.biz}','${String(s.no||'').replace(/'/g,"\\'")}')">
+    return `<div class="sk-card" style="cursor:pointer" onclick="smOpenCard(${i})" title="クリックでシートの該当行を開きます">
       <div class="sk-head"><span class="sk-cat">${escHtml(s.biz)} No.${escHtml(s.no||'-')}</span><span class="pill ${smPillCls(s.status)}">${escHtml(s.status||'—')}</span></div>
       <div style="font-size:12px;line-height:1.6">
         <div><b>${escHtml(s.cat||'—')}</b>／${escHtml(s.method||'—')}</div>
@@ -886,10 +805,32 @@ function renderShisakuCards(list){
         <div>担当：${escHtml(s.tanto||'—')}　検証日：${escHtml(s.check||'—')}</div>
       </div>
       ${kSets.map(k=>`<div class="sk-metric"><div class="sk-metric-lbl"><span>${escHtml(k.kpi||'KPI')}</span><span>${escHtml(k.actual||'—')} / ${escHtml(k.goal||'—')}</span></div></div>`).join('')}
-      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)" onclick="event.stopPropagation()">${smRowActions(s)}</div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();smOpenCard(${i})">${s.deleteFlag?'削除候補を開く（復元・完全削除）':'詳細・編集（シートで開く）'}</button></div>
     </div>`;
   }).join('');
 }
+/* シートの該当行を選んで詳細パネルを開く。ref＝DATA.shisaku の行そのもの（No.が重複していても、その行だけを開く） */
+function smOpenRow(biz,ref){
+  if(!ref||!BIZ4.includes(biz))return;
+  if(SH.editing)shCommit();
+  ST.smSub='sheet';ST.biz=biz;SH.sheet=biz;SH.pending=(ref.status==='候補');
+  const del=document.getElementById('smShowDeleted');if(del)del.checked=!!ref.deleteFlag;
+  if(ST.view!=='shisaku')showView('shisaku');
+  initUI();setShisakuSubView('sheet');
+  let r=SH.rows.indexOf(ref);
+  if(r<0){ /* シートの検索・絞り込みで隠れている場合は解除して探す */
+    const q=document.getElementById('smSearch');if(q)q.value='';
+    const st=shSt();st.filters={};shPutSt(st);renderShisakuSheet();r=SH.rows.indexOf(ref);
+    if(r>=0)toast('シートの絞り込みを解除して表示しました');
+  }
+  if(r<0){toast('シートで該当の行が見つかりませんでした');return;}
+  const ci=Math.max(0,SH.cols.findIndex(c=>c.f==='naiyo'));
+  SH.panelRow=null;if(!SH.panel)shTogglePanel(true);
+  shSelect(r,ci);shEnsureVisible(r,ci);
+}
+function smOpenCard(i){const s=SM_CARDS[i];if(s)smOpenRow(s.biz,s._ref);}
+/* No.から開く（PDCAボードの「実績を入力」など。No.が重複する場合は最初の行） */
+function smOpenByNo(biz,no){const arr=DATA.shisaku[biz]||[];const ref=arr.find(x=>String(x.no)===String(no)&&!x.deleteFlag)||arr.find(x=>String(x.no)===String(no));smOpenRow(biz,ref);}
 const SM_FILTER_DEFS=[['daibunrui','大分類'],['cat','種類'],['status','状態'],['tanto','担当']];
 function smFilterValues(key){
   ensureShisakuMasters();
@@ -918,13 +859,6 @@ function renderMselPanels(){
 }
 function populateSmFilters(){renderMselPanels();}
 function setShisakuSubView(v){ST.smSub=v;document.querySelectorAll('#viewShisakuSubTabs .sub-tab').forEach(x=>x.classList.toggle('active',x.dataset.sv===v));renderShisakuMgmt();}
-function openColToggle(){
-  ensureSmState();
-  const p=document.getElementById('smColPanel');
-  p.classList.toggle('hidden');
-  if(p.classList.contains('hidden'))return;
-  p.innerHTML='<div class="chk-row">'+SM_COLS.map(c=>`<label><input type="checkbox" ${ST.smCols[c[0]]?'checked':''} onchange="ST.smCols['${c[0]}']=this.checked;saveSmPrefs();renderShisakuMgmt()">${escHtml(c[1])}</label>`).join('')+'</div>';
-}
 function renderShisakuMgmt(){
   ensureSmState();
   const sheetMode=ST.smSub==='sheet';
@@ -932,53 +866,17 @@ function renderShisakuMgmt(){
   document.body.classList.toggle('sheet-wide',sheetMode&&ST.view==='shisaku');
   document.getElementById('smSheetWrap').classList.toggle('hidden',!sheetMode);
   if(sheetMode){
-    document.getElementById('smTableWrap').classList.add('hidden');
     document.getElementById('smCardWrap').classList.add('hidden');
-    document.getElementById('smColPanel').classList.add('hidden');
     document.getElementById('smNote').innerHTML='';
     renderShisakuSheet();
     return;
   }
   populateSmFilters();
   const list=smList();
-  document.getElementById('smNote').innerHTML=`対象：<b>${ST.biz==='ALL'?'全社':ST.biz}</b>／${list.length}件　<span class="muted">複数ソート：列見出しをShiftクリックで追加</span>`;
-  if(ST.smSub==='table'){
-    document.getElementById('smTableWrap').classList.remove('hidden');
-    document.getElementById('smCardWrap').classList.add('hidden');
-    renderShisakuTable(list);
-  }else{
-    document.getElementById('smTableWrap').classList.add('hidden');
-    document.getElementById('smCardWrap').classList.remove('hidden');
-    renderShisakuCards(list);
-  }
+  document.getElementById('smNote').innerHTML=`対象：<b>${ST.biz==='ALL'?'全社':ST.biz}</b>／${list.length}件　<span class="muted">カードをクリックすると、シートの該当行と詳細パネルが開きます</span>`;
+  document.getElementById('smCardWrap').classList.remove('hidden');
+  renderShisakuCards(list);
 }
-function openSmCard(biz,no){
-  const s=(DATA.shisaku[biz]||[]).find(x=>String(x.no)===String(no));
-  if(!s)return;
-  document.getElementById('smCardEditBtn').dataset.biz=biz;document.getElementById('smCardEditBtn').dataset.no=String(no);
-  document.getElementById('smCardTitle').textContent=biz+' No.'+(s.no||'-')+' 施策詳細';
-  const kSets=smKpiSets(s);
-  const url=safeUrl(s.backlog);
-  document.getElementById('smCardBody').innerHTML=`<div class="form-grid">
-    <label>大分類</label><div>${escHtml(s.daibunrui||'—')}</div>
-    <label>課題・目的</label><div>${escHtml(s.mokuteki||'—')}</div>
-    <label>手法／種類</label><div>${escHtml(s.method||'—')} ／ ${escHtml(s.cat||'—')}</div>
-    <label>施策内容</label><div>${escHtml(s.naiyo||'—')}</div>
-    <label>担当</label><div>${escHtml(s.tanto||'—')}</div>
-    <label>関連施策No</label><div>${escHtml(s.kanren||'—')}</div>
-    <label>状態</label><div><span class="pill ${smPillCls(s.status)}">${escHtml(s.status||'—')}</span></div>
-    <label>着手日/実施日/検証日</label><div>${escHtml(s.startDate||'—')} ／ ${escHtml(s.release||'—')} ／ ${escHtml(s.check||'—')}</div>
-    <label>事例会社</label><div>${escHtml(s.jireiCompany||'—')}</div>
-    <label>コンテンツNo</label><div>コラム:${escHtml(s.columnNo||'—')} メルマガ:${escHtml(s.mailNo||'—')} WP:${escHtml(s.wpNo||'—')}</div>
-    <label>優先順位</label><div>${escHtml(s.priority||'—')}</div>
-    <label>Backlog</label><div>${url?`<a href="${url}" target="_blank" rel="noopener">${escHtml(url)}</a>`:escHtml(s.backlog||'—')}</div>
-    <label>最終更新</label><div>${s.updatedAt?escHtml(new Date(s.updatedAt).toLocaleString('ja-JP')):'—'}／出所：${s.source==='app'?'アプリ':'Excel取込'}</div>
-    <label class="full">KPI</label>
-    <div class="full"><div class="tbl-wrap" style="max-height:220px"><table><thead><tr><th>KPI</th><th>目標</th><th>実績</th></tr></thead><tbody>${kSets.length?kSets.map(k=>`<tr><td>${escHtml(k.kpi||'—')}</td><td>${escHtml(k.goal||'—')}</td><td>${escHtml(k.actual||'—')}</td></tr>`).join(''):'<tr><td colspan="3" class="empty">KPI未設定</td></tr>'}</tbody></table></div></div>
-  </div>`;
-  document.getElementById('smCardModal').classList.add('on');
-}
-function closeSmCard(){document.getElementById('smCardModal').classList.remove('on');}
 
 /* ===== 施策管理タブ F4: Excel風シート（施策管理表.xlsx と同じ列・見出し・列幅で表示し、その場で入力） ===== */
 /* 列定義：[列記号, 見出し(2行目), 項目, 種類]。種類 text/long/list/date/url。kN.xxx は KPIセットN（0始まり）の項目 */
@@ -1560,108 +1458,6 @@ function shInit(){
 /* ===== 施策管理タブ F2: アプリ内CRUD ===== */
 /* 新しいNo.：その事業の数字のNo.の最大値＋1（Excelと同じ数字の連番。事業はシート／事業タブで区別する） */
 function nextShisakuNo(biz){const nums=(DATA.shisaku[biz]||[]).map(s=>{const v=String(s.no==null?'':s.no).trim();return /^\d+$/.test(v)?parseInt(v,10):0;});const n=(nums.length?Math.max(...nums):0)+1;DATA.shisakuNoSeq=DATA.shisakuNoSeq||{};DATA.shisakuNoSeq[biz]=n;return String(n);}
-function fillDatalist(id,vals){document.getElementById(id).innerHTML=(vals||[]).map(v=>`<option value="${escHtml(v)}">`).join('');}
-function seKpiRowHtml(k){k=k||{kpi:'',goal:'',actual:''};return `<div class="se-kpi-row" style="display:flex;gap:6px;margin-bottom:6px"><input type="text" class="se-kpi" placeholder="KPI" value="${escHtml(k.kpi||'')}" list="mKpiItems" style="flex:2"><input type="text" class="se-goal" placeholder="目標" value="${escHtml(k.goal||'')}" style="flex:1"><input type="text" class="se-actual" placeholder="実績" value="${escHtml(k.actual||'')}" style="flex:1"><button class="btn btn-danger btn-sm" onclick="this.closest('.se-kpi-row').remove()">✕</button></div>`;}
-function addSeKpiRow(k){document.getElementById('seKpiSets').insertAdjacentHTML('beforeend',seKpiRowHtml(k));}
-function openSmEdit(biz,no){
-  ensureShisakuMasters();
-  fillDatalist('mDaibunrui',DATA.shisakuMasters.daibunrui);
-  fillDatalist('mMethod',DATA.shisakuMasters.method);
-  fillDatalist('mCat',DATA.shisakuMasters.cat);
-  fillDatalist('mPriority',DATA.shisakuMasters.priority);
-  fillDatalist('mStatus',DATA.shisakuMasters.status);
-  fillDatalist('mKpiItems',DATA.shisakuMasters.kpiItems);
-  const bizSel=document.getElementById('seBiz');bizSel.innerHTML=BIZ4.map(b=>`<option ${b===biz?'selected':''}>${b}</option>`).join('');
-  bizSel.disabled=!!no;
-  const s=no?(DATA.shisaku[biz]||[]).find(x=>String(x.no)===String(no)):null;
-  document.getElementById('smEditTitle').textContent=s?(biz+' No.'+s.no+' を編集'):'新規施策の追加';
-  document.getElementById('seNo').textContent=s?s.no:'（保存時に自動採番：例 '+biz+'-001）';
-  document.getElementById('seEditingBadge').classList.toggle('hidden',!s);
-  if(s)document.getElementById('seEditingBadge').textContent='編集中：'+biz+' No.'+s.no;
-  const set=(id,v)=>document.getElementById(id).value=v||'';
-  set('seDaibunrui',s&&s.daibunrui);set('seMokuteki',s&&s.mokuteki);set('seKanren',s&&s.kanren);set('seMethod',s&&s.method);
-  set('seCat',s&&s.cat);set('seNaiyo',s&&s.naiyo);set('seTanto',s&&s.tanto);set('seJirei',s&&s.jireiCompany);
-  set('seColumnNo',s&&s.columnNo);set('seMailNo',s&&s.mailNo);set('seWpNo',s&&s.wpNo);set('seBacklog',s&&s.backlog);
-  set('sePriority',s&&s.priority);set('seStatus',s&&s.status);set('seStartDate',s&&s.startDate);set('seRelease',s&&s.release);set('seCheck',s&&s.check);
-  document.getElementById('seShisakuType').value=(s&&s.shisakuType)||'';
-  const kpiWrap=document.getElementById('seKpiSets');kpiWrap.innerHTML='';
-  const sets=s?smKpiSets(s):[];
-  (sets.length?sets:[{kpi:'',goal:'',actual:''}]).forEach(k=>addSeKpiRow(k));
-  document.getElementById('smEditModal').dataset.editBiz=biz||'';
-  document.getElementById('smEditModal').dataset.editNo=no||'';
-  document.getElementById('smEditModal').classList.add('on');
-}
-function closeSmEdit(){document.getElementById('smEditModal').classList.remove('on');}
-function saveSmEdit(){
-  const modal=document.getElementById('smEditModal');
-  const editBiz=modal.dataset.editBiz,editNo=modal.dataset.editNo;
-  const biz=document.getElementById('seBiz').value;
-  const naiyo=document.getElementById('seNaiyo').value.trim()||null;
-  const mokuteki=document.getElementById('seMokuteki').value.trim()||null;
-  if(!naiyo&&!mokuteki){alert('「課題・目的」または「施策内容」のいずれかを入力してください');return;}
-  const kpiSets=[...document.querySelectorAll('#seKpiSets .se-kpi-row')].map(row=>({
-    kpi:row.querySelector('.se-kpi').value.trim()||null,
-    goal:row.querySelector('.se-goal').value.trim()||null,
-    actual:row.querySelector('.se-actual').value.trim()||null
-  })).filter(k=>k.kpi||k.goal||k.actual);
-  const rec={
-    daibunrui:document.getElementById('seDaibunrui').value.trim()||null,
-    mokuteki,kanren:document.getElementById('seKanren').value.trim()||null,
-    method:document.getElementById('seMethod').value.trim()||null,
-    cat:document.getElementById('seCat').value.trim()||null,
-    naiyo,tanto:document.getElementById('seTanto').value.trim()||null,
-    jireiCompany:document.getElementById('seJirei').value.trim()||null,
-    columnNo:document.getElementById('seColumnNo').value.trim()||null,
-    mailNo:document.getElementById('seMailNo').value.trim()||null,
-    wpNo:document.getElementById('seWpNo').value.trim()||null,
-    backlog:document.getElementById('seBacklog').value.trim()||null,
-    priority:document.getElementById('sePriority').value.trim()||null,
-    status:document.getElementById('seStatus').value.trim()||null,
-    startDate:document.getElementById('seStartDate').value||null,
-    release:document.getElementById('seRelease').value||null,
-    check:document.getElementById('seCheck').value||null,
-    shisakuType:document.getElementById('seShisakuType').value||null,
-    kpiSets,kpi:kpiSets[0]?kpiSets[0].kpi:null,goal:kpiSets[0]?kpiSets[0].goal:null,actual:kpiSets[0]?kpiSets[0].actual:null,
-    updatedAt:new Date().toISOString()
-  };
-  DATA.shisaku[biz]=DATA.shisaku[biz]||[];
-  if(editNo){
-    const idx=DATA.shisaku[editBiz].findIndex(x=>String(x.no)===String(editNo));
-    if(idx>=0){
-      const prev=DATA.shisaku[editBiz][idx];
-      DATA.shisaku[editBiz][idx]=Object.assign({},prev,rec,{no:prev.no,source:prev.source||'excel'});
-    }
-  }else{
-    const no=nextShisakuNo(biz);
-    DATA.shisaku[biz].push(Object.assign({no,source:'app',deleteFlag:false},rec));
-  }
-  mergeMasterList('daibunrui',[rec.daibunrui]);mergeMasterList('method',[rec.method]);mergeMasterList('cat',[rec.cat]);
-  mergeMasterList('status',[rec.status]);mergeMasterList('priority',[rec.priority]);
-  kpiSets.forEach(k=>mergeMasterList('kpiItems',[k.kpi]));
-  markUnsaved();closeSmEdit();renderAll();toast('施策を保存しました');
-}
-function duplicateSm(biz,no){
-  const s=(DATA.shisaku[biz]||[]).find(x=>String(x.no)===String(no));if(!s)return;
-  const copy=Object.assign({},s,{no:nextShisakuNo(biz),source:'app',deleteFlag:false,updatedAt:new Date().toISOString(),naiyo:(s.naiyo||'')+'（複製）'});
-  DATA.shisaku[biz].push(copy);
-  markUnsaved();renderAll();toast('複製しました：'+biz+' No.'+copy.no);
-}
-function deleteSm(biz,no){
-  const s=(DATA.shisaku[biz]||[]).find(x=>String(x.no)===String(no));if(!s)return;
-  if(!confirm(biz+' No.'+no+' を削除候補にしますか？（一覧の「削除候補を表示」で確認・復元・完全削除できます）'))return;
-  s.deleteFlag=true;s.updatedAt=new Date().toISOString();
-  markUnsaved();renderAll();toast('削除候補にしました');
-}
-function restoreSm(biz,no){
-  const s=(DATA.shisaku[biz]||[]).find(x=>String(x.no)===String(no)&&x.deleteFlag);if(!s)return;
-  s.deleteFlag=false;s.updatedAt=new Date().toISOString();
-  markUnsaved();renderAll();toast('復元しました');
-}
-function purgeSm(biz,no){
-  if(!confirm(biz+' No.'+no+' を完全に削除します。元に戻せません。よろしいですか？'))return;
-  {const arr=DATA.shisaku[biz]||[];const i=arr.findIndex(x=>String(x.no)===String(no)&&x.deleteFlag);if(i>=0)arr.splice(i,1);}
-  markUnsaved();renderAll();toast('完全に削除しました');
-}
 /* 施策(施策管理表)のステージ：完了=Do完了→Check(検証待ち/検証中)。改善確定のActは施策自体では埋めない（PDCA案の完了で埋める）。 */
 function stageOf(status){if(!status)return 'P';if(status.includes('中止'))return null;if(status.includes('完了')||status.includes('検証')||status.includes('レビュー'))return 'C';if(status.includes('進行')||status.includes('保留'))return 'D';return 'P';}
 function catNorm(c){if(!c)return '';const m={'コラム':'コラム','メルマガ':'メルマガ','WP':'WP','ホワイトペーパー':'WP','事例':'事例','実績事例':'事例','動画':'動画','サイト改善':'サイト改善','分析':'分析','広告':'広告','リスティング':'広告','DSP':'広告','LP':'LP'};return m[c]||c;}
@@ -1707,7 +1503,7 @@ function renderTriagePanel(){
   }
   if(needsActual.length){
     html+=`<div class="triage-panel"><div class="triage-hd">📝 実績未記入（検証日超過：${needsActual.length}件）<span class="muted" style="font-weight:400;font-size:11px">検証日を過ぎているのにKPIの実績が未記入の施策です</span></div>`;
-    html+=needsActual.slice(0,30).map(s=>`<div class="triage-item"><span class="ti-title"><b>${escHtml(s.biz)} No.${escHtml(s.no||'-')}</b> ${escHtml(trunc(s.naiyo||s.mokuteki||'',50))}　検証日：${escHtml(s.check||'—')}</span><button class="btn btn-ghost btn-sm" onclick="openSmEdit('${s.biz}','${String(s.no).replace(/'/g,"\\'")}')">実績を入力</button></div>`).join('');
+    html+=needsActual.slice(0,30).map(s=>`<div class="triage-item"><span class="ti-title"><b>${escHtml(s.biz)} No.${escHtml(s.no||'-')}</b> ${escHtml(trunc(s.naiyo||s.mokuteki||'',50))}　検証日：${escHtml(s.check||'—')}</span><button class="btn btn-ghost btn-sm" onclick="smOpenByNo('${s.biz}','${String(s.no).replace(/'/g,"\\'")}')">実績を入力（シートで開く）</button></div>`).join('');
     if(needsActual.length>30)html+=`<div class="muted" style="margin-top:6px">他${needsActual.length-30}件（フィルタで絞り込んでください）</div>`;
     html+='</div>';
   }
