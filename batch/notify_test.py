@@ -13,6 +13,10 @@ Teams の「ワークフロー」で作った Webhook（要求を受け取った
 使い方（PowerShell）:
   & C:\\work\\anaconda_install\\python.exe -I batch\\notify_test.py --url-file "<URLを保存したファイル>"
   & C:\\work\\anaconda_install\\python.exe -I batch\\notify_test.py --dry-run   # 送らずに中身だけ表示
+
+通知の文言を変えるとき（Teams のワークフロー側は、受け取ったカードをそのまま投稿する設定にしておく。文言はこちらで決める）:
+  --title "見出し"  --text "本文1行目" --text "本文2行目"   … 文言を指定する（--text は何回でも）
+  --message-file 文言.txt                                   … 1行目＝見出し、2行目以降＝本文（UTF-8）
 """
 import argparse
 import datetime
@@ -62,12 +66,26 @@ def main():
     ap = argparse.ArgumentParser(description="Teams 通知のテスト送信")
     ap.add_argument("--url-file", help="Webhook URL を1行で保存したファイルの場所")
     ap.add_argument("--dry-run", action="store_true", help="送らずに送信内容を表示する")
+    ap.add_argument("--title", help="通知の見出し（省略すると、テスト送信の見出し）")
+    ap.add_argument("--text", action="append", help="本文の1行（何回でも指定できる）")
+    ap.add_argument("--message-file", help="文言のファイル（UTF-8。1行目＝見出し、2行目以降＝本文）")
     args = ap.parse_args()
 
-    card = build_card("【KPI-PDCA通知】テスト送信", [
+    title = "【KPI-PDCA通知】テスト送信"
+    lines = [
         "これは通知のテストです。このメッセージが届いていれば、設定は完了しています。",
         "本番では、停滞（採否待ち・検証日が空・実績が空・判定が空・次サイクルなし）の件数と対象の施策をお知らせします。",
-    ])
+    ]
+    if args.message_file:
+        with open(args.message_file, encoding="utf-8-sig") as f:
+            rows = [l.rstrip("\r") for l in f.read().split("\n") if l.strip()]
+        if rows:
+            title, lines = rows[0], rows[1:]
+    if args.title:
+        title = args.title
+    if args.text:
+        lines = args.text
+    card = build_card(title, lines)
     payload = build_payload(card)
 
     if args.dry_run:
